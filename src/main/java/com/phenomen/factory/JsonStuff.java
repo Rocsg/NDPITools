@@ -317,6 +317,7 @@ public class JsonStuff extends PlugInFrame{
 		}
 		
 		public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest) {
+			
 			int nLost=0;
 			int nFound=0;
 			double accIOU=0;
