@@ -288,34 +288,55 @@ public class JsonStuff extends PlugInFrame{
             //IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Result_proba_layer_2_"+targetResolution+"_pix"+extension(useRotAugTrain, useContAugTrain)+(useRotAugValidate ? "_AUGVAL" : "")+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");
         }
         
+        
+        public static ImagePlus processProbaMap(ImagePlus probaMap,int strategy) {
+        	if(strategy==0)return VitimageUtils.getBinaryMask(probaMap, 0.5);
+        	probaMap.show();
+        	probaMap.setTitle("temp");
+        	IJ.run("Frangi Vesselness", "input=temp dogauss=true spacingstring=[1, 1] scalestring=4");
+        	IJ.selectWindow("result");
+        	IJ.run("Find Maxima...", "prominence=0.0000002 output=[Point Selection]");
+        	RoiManager rm=RoiManager.getInstance();
+        	rm.getRoi(0);
+        //	IJ.roiManager("Add");
+        //	selectWindow("Result_proba_layer_1_512_pix_AUGCONT.tif");
+        //	roiManager("Select", 0);
+        	return null;
+        }
+        
 		public static void step_04_measure_scores_on_validation_data(int targetResolution,boolean useRotAug,boolean useContAug,boolean useRotAugVal,boolean makeTest,int layer,int scenarioAug,int scenarioTrain) {
 			boolean verbose=false;
 			System.out.println(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Result_proba_layer_"+layer+"_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(useRotAugVal ? "_AUGVAL" : "")+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");
             ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Result_proba_layer_"+layer+"_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(useRotAugVal ? "_AUGVAL" : "")+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Stack_annotations_"+targetResolution+"_pix.tif");
             VitimageUtils.printImageResume(binaryValT);
-			binaryValT=VitimageUtils.getBinaryMask(binaryValT, 0.5);
+			binaryValT=processProbaMap(binaryValT,0);/*VitimageUtils.getBinaryMask(binaryValT, 0.5);*/
 			if(CLEAN_VAL)binaryValT=JsonRoiSegmentationConverter.cleanVesselSegmentation(binaryValT,targetResolution, MIN_VB_512, MAX_VB_512);
 			if(CLEAN_REF)binaryRefT=JsonRoiSegmentationConverter.cleanVesselSegmentation(binaryRefT,targetResolution, MIN_VB_512, MAX_VB_512);
+			scoreComparisonSegmentations(binaryRefT,binaryValT);
+		}
+		
+		public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest) {
 			int nLost=0;
 			int nFound=0;
 			double accIOU=0;
 			int nInMore=0;
 			int nTotRef=0;
 			int nTotVal=0;
-			int Z=binaryValT.getNSlices();
+			int Z=segTest.getNSlices();
 			int[]nbFoundPerClass=new int[20];
 			int[]nbTotPerClass=new int[20];
 			for(int z=0;z<Z;z++) {
-				ImagePlus binaryRef=new Duplicator().run(binaryRefT,1,1,z+1,z+1,1,1);
-				ImagePlus binaryVal=new Duplicator().run(binaryValT,1,1,z+1,z+1,1,1);
+				ImagePlus binaryRef=new Duplicator().run(segRef,1,1,z+1,z+1,1,1);
+				ImagePlus binaryVal=new Duplicator().run(segTest,1,1,z+1,z+1,1,1);
 	            double iouGlob=JsonRoiSegmentationConverter.IOU(binaryRef,binaryVal);
 	            Roi[]rRef=JsonRoiSegmentationConverter.segmentationToRoi(binaryRef);
 	            Roi[]rVal=JsonRoiSegmentationConverter.segmentationToRoi(binaryVal);
 				nTotRef+=rRef.length;
 				nTotVal+=rVal.length;
 				Object[][]tab=JsonRoiSegmentationConverter.roiPairingHungarianMethod(rRef,rVal);
-				for(int i=0;i<tab.length;i++) {					
+				for(int i=0;i<tab.length;i++) {	
+					System.out.println(i+" tab : "+tab[i][0]+" , "+tab[i][1]+ " , "+tab[i][2]);
 					int index=(int)Math.floor(((Double)tab[i][2]/20.0));
 					if(index>19)index=19;
 					nbTotPerClass[index]++;
@@ -326,7 +347,7 @@ public class JsonStuff extends PlugInFrame{
 				}
 				
 				nInMore=nTotVal-nFound;
-				if(verbose) {
+				if(false) {
 					System.out.println("\nAfter z="+z);
 					System.out.println("nLost="+nLost);
 					System.out.println("nFound="+nFound);
@@ -352,7 +373,7 @@ public class JsonStuff extends PlugInFrame{
 					System.out.print("Class["+(indBase*20)+" - "+((indBase+1)*20)+"]:"+percentInd+" , ");
 				}
 			}
-			JsonRoiSegmentationConverter.getSizeMap(binaryRefT,0,20,5,true);
+			JsonRoiSegmentationConverter.getSizeMap(segRef,0,20,5,true);
 		}
 
 		public static void step_05_display_results_validation_data(int targetResolution,boolean useRotAug,boolean useContAug,boolean useRotAugVal,boolean makeTest,int layer,int scenarioAug,int scenarioTrain) {

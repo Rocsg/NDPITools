@@ -333,7 +333,7 @@ public class JsonRoiSegmentationConverter {
     public static Object [][] roiPairingHungarianMethod(Roi[]roiTabRef,Roi[]roiTabTest){
         double[][]costMatrix=new double[roiTabRef.length][roiTabTest.length];
         for(int i=0;i<roiTabRef.length;i++) {
-            for(int j=0;j<roiTabRef.length;j++) {
+            for(int j=0;j<roiTabTest.length;j++) {
             	costMatrix[i][j]=1-IOU(roiTabRef[i],roiTabTest[j]);
             }
         }
@@ -348,7 +348,7 @@ public class JsonRoiSegmentationConverter {
         for(int i=0;i<roiTabRef.length;i++) {
         	double surface=getRoiSurface(roiTabRef[i]);
         	if(solutions[i]==-1)ret[i]=new Object[] {new Integer(-1),new Double(0),new Double(surface)};
-        	else if(costMatrix[i][solutions[i]]>=1)ret[i]=new Object[] {new Integer(-1),new Double(0),new Double(surface)};
+        	else if(IOU(roiTabRef[i],roiTabTest[solutions[i]])<=0) ret[i]=new Object[] {new Integer(-1),new Double(0),new Double(surface)};
         	else ret[i]=new Object[] {solutions[i],IOU(roiTabRef[i],roiTabTest[solutions[i]]),new Double(surface)};
         }    		
         return ret;
