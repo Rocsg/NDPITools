@@ -68,7 +68,7 @@ public class HungarianAlgorithm {
 
 		HungarianAlgorithm hung=new HungarianAlgorithm(cost2);
 		int []solutions=hung.execute();
-		System.out.println(TransformUtils.stringMatrixMN("Init mat", cost));
+		System.out.println(TransformUtils.stringMatrixMN("Init mat", cost2));
 		System.out.println(TransformUtils.stringVectorN( solutions,""));
 		
 	}
