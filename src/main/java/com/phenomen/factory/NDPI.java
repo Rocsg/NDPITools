@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import com.phenomen.ndpilegacy.ExtractNDPI;
 import com.phenomen.ndpilegacy.JAIReader;
 import com.phenomen.ndpilegacy.NDPISplit;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.VitimageUtils;
 
 import ij.IJ;
 import ij.ImageJ;

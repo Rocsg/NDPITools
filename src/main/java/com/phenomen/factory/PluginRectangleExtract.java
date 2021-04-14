@@ -1,5 +1,5 @@
 package com.phenomen.factory;
-import com.vitimage.common.VitiDialogs;
+import com.phenomen.common.VitiDialogs;
 
 import ij.IJ;
 import ij.ImagePlus;

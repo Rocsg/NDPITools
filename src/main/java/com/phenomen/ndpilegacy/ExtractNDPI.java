@@ -28,7 +28,7 @@ import java.util.Calendar;
 import java.util.Comparator;
 
 import com.phenomen.factory.NDPI;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.VitimageUtils;
 
 import java.io.File;
 import java.awt.Dimension;

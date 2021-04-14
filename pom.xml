@@ -132,11 +132,11 @@
 
 
 		<dependency>
-		    <groupId>com.vitimage</groupId>
-		    <artifactId>Fijiyama_GUI</artifactId>
+		    <groupId>com.phenomen</groupId>
+		    <artifactId>Fijiyama</artifactId>
 		    <version>4.0.0</version>	    
 		    <scope>system</scope>
-			<systemPath>${basedir}/lib/Fijiyama_GUI/Fijiyama_GUI-jar/4.0.0/Fijiyama_GUI-4.0.0.jar</systemPath>
+			<systemPath>${basedir}/lib/Fijiyama/Fijiyama-jar/4.0.0/Fijiyama-4.0.0.jar</systemPath>
 		</dependency> 
   	
 

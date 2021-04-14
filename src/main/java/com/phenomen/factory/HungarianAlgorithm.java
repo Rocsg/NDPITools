@@ -1,8 +1,8 @@
 package com.phenomen.factory;
 import java.util.Arrays;
 
-import com.vitimage.common.TransformUtils;
-import com.vitimage.common.VitimageUtils;
+import com.phenomen.common.TransformUtils;
+import com.phenomen.common.VitimageUtils;
 
 /* Copyright (c) 2012 Kevin L. Stern
  * 
