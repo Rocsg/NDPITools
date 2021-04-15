@@ -111,6 +111,7 @@ public class JsonStuff extends PlugInFrame{
     	   
     	   /** Training and validation*/
     	   boolean makeTestData=false;
+
     	   int targetResolution=512;
     	   boolean useRotAug=false;
     	   boolean useContAug=false;
