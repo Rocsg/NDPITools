@@ -12,6 +12,7 @@ com/phenomen/ndpilegacy/ExtractNDPI$Custom_Extract_Dialog.class
 com/phenomen/ndpilegacy/NdpisplitProcess.class
 com/phenomen/ndpilegacy/NDPIToolsPreviewPlugin.class
 com/phenomen/ndpilegacy/NDPIToolsCustomConvertDirectoryPlugin.class
+com/phenomen/factory/SegmentationUtils.class
 com/phenomen/ndpilegacy/UnsupportedImageFileFormatException.class
 com/phenomen/ndpilegacy/UnsupportedImageModelException.class
 com/phenomen/factory/PluginOpenPreview.class
@@ -19,6 +20,7 @@ com/phenomen/ndpilegacy/NDPIToolsCustomExtractToTIFFPlugin.class
 com/phenomen/ndpilegacy/NDPISplit.class
 com/phenomen/ndpilegacy/MessagesFromNdpisplit.class
 com/phenomen/ndpilegacy/HelpPanel$1.class
+com/phenomen/factory/ScriptMathieu.class
 com/phenomen/ndpilegacy/ImagePlusCreator.class
 com/phenomen/ndpilegacy/ExtractNDPI.class
 com/phenomen/factory/NDPITest.class
@@ -29,4 +31,5 @@ com/phenomen/ndpilegacy/NDPIStreamParser.class
 com/phenomen/ndpilegacy/NDPIToolsOpenTIFFPlugin.class
 com/phenomen/factory/NDPI.class
 com/phenomen/ndpilegacy/HelpPanel.class
+com/phenomen/factory/Test.class
 com/phenomen/ndpilegacy/HelpPanel$2.class
