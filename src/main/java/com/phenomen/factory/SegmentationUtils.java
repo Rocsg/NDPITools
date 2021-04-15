@@ -17,148 +17,15 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 import ij.plugin.Duplicator;
+import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
+import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
+
 import com.phenomen.common.VitimageUtils;
 
-public class JsonRoiSegmentationConverter {
+public class SegmentationUtils {
     
-	//IJ.run(imp, "Gaussian Blur...", "sigma=2");
-	//IJ.run(imp, "Find Maxima...", "prominence=0.50 strict output=[Segmented Particles]");
-
-    public static double getRoiSurface(Roi r) {
-        int x0=(int)Math.floor(r.getBounds().getMinX());
-        int x1=(int)Math.floor(r.getBounds().getMaxX());
-        int y0=(int)Math.floor(r.getBounds().getMinY());
-        int y1=(int)Math.floor(r.getBounds().getMaxY());
-        int inter=0;
-        for(int x=x0;x<=x1;x++) {
-            for(int y=y0;y<=y1;y++) {
-                if(r.contains(x, y))inter++;
-            }
-        }
-        return inter;
-   	
-    }
-    
-    
-    public static double IOU(ImagePlus imgRef,ImagePlus imgVal) {
-    	ImagePlus ref=VitimageUtils.getBinaryMask(imgRef, 0.5);
-    	ImagePlus val=VitimageUtils.getBinaryMask(imgVal, 0.5);
-    	ImagePlus imgOR=VitimageUtils.binaryOperationBetweenTwoImages(ref, val, 1);
-    	ImagePlus imgAND=VitimageUtils.binaryOperationBetweenTwoImages(ref, val, 2);
-    	int nbIm1=nbPixelsInClasses(imgRef)[255];
-    	int nbIm2=nbPixelsInClasses(imgVal)[255];
-    	int nbAND=nbPixelsInClasses(imgAND)[255];
-    	int nbOR=nbPixelsInClasses(imgOR)[255];
-    	return(nbAND*1.0/nbOR);
-    }
-
-    public static double IOU(Roi r1,Roi r2) {
-        if(r1.getBounds().getMinX()>r2.getBounds().getMaxX())return 0;
-        if(r1.getBounds().getMinY()>r2.getBounds().getMaxY())return 0;
-        if(r2.getBounds().getMinX()>r1.getBounds().getMaxX())return 0;
-        if(r2.getBounds().getMinY()>r1.getBounds().getMaxY())return 0;
-
-        int x0=(int)Math.floor(Math.min(r1.getBounds().getMinX(), r2.getBounds().getMinX()));
-        int x1=(int)Math.ceil(Math.max(r1.getBounds().getMaxX(), r2.getBounds().getMaxX()));
-        int y0=(int)Math.floor(Math.min(r1.getBounds().getMinY(), r2.getBounds().getMinY()));
-        int y1=(int)Math.ceil(Math.max(r1.getBounds().getMaxY(), r2.getBounds().getMaxY()));
-        //System.out.println("Bbox both="+x0+","+x1+","+y0+","+y1);
-        int inter=0;
-        int union=0;
-        for(int x=x0;x<=x1;x++) {
-                for(int y=y0;y<=y1;y++) {
-                        if((r1.contains(x, y)) && (r2.contains(x, y)))inter++;
-                        if((r1.contains(x, y)) || (r2.contains(x, y)))union++;
-                }
-                //System.out.println("Result : "+inter+" , "+union);
-        }
-        return (1.0*inter)/union;
-}
-
-    
-    
-	public static ImagePlus getSizeMap(ImagePlus img,int threshLow,int step,int nCat,boolean show) {
-
-		ImagePlus imgRet=VitimageUtils.nullImage(img);
-		IJ.run(imgRet,"8-bit","");
-		imgRet.setDisplayRange(0, nCat*step);
-		IJ.run(imgRet,"Fire","");
-		for(int z=0;z<imgRet.getNSlices();z++) {
-			ImagePlus temp=new Duplicator().run(img,1,1,z+1,z+1,1,1);
-			Roi[]roiTab=segmentationToRoi(temp);
-			ImageProcessor ip=imgRet.getStack().getProcessor(z+1);
-			for(Roi r : roiTab) {
-				int index=(int)Math.floor(getRoiSurface(r))/step+1;
-				if(index>nCat)index=nCat;
-				ip.setValue(index*step);
-				ip.fill(r);
-			}
-			imgRet.getStack().setProcessor(ip, z+1);
-		}
-		VitimageUtils.showWithParams(imgRet,img.getTitle()+"_size_map",1,0,nCat*step);
-/*			imgRet.show();
-		imgRet.setDisplayRange(0, nCat*step);
-		imgRet.updateAndDraw();
-		IJ.run(imgRet,"Fire","");
-		IJ.run("Brightness/Contrast...");
-		selectWindow("B&C");
-		*/
-		if(!show)imgRet.hide();
-		return imgRet;
-	}
-           
-    public static int[]nbPixelsInClasses(ImagePlus img){
-        int[]tab=img.getStack().getProcessor(1).getHistogram();
-        return tab;
-    }
-       
-	public static ImagePlus getBinaryMaskUnary(ImagePlus img,double threshold) {
-		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
-		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
-		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
-		VitimageUtils.adjustImageCalibration(ret,img);
-		if(type==8) {
-			for(int z=0;z<dimZ;z++) {
-				byte []tabImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
-				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
-				for(int x=0;x<dimX;x++) {
-					for(int y=0;y<dimY;y++) {
-						if( (tabImg[dimX*y+x] & 0xff) >= (byte)(((int)Math.round(threshold)) & 0xff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
-						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
-					}
-				}
-			}
-		}
-		else if(type==16) {
-			for(int z=0;z<dimZ;z++) {
-				short []tabImg=(short[])img.getStack().getProcessor(z+1).getPixels();
-				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
-				for(int x=0;x<dimX;x++) {
-					for(int y=0;y<dimY;y++) {
-						if( (tabImg[dimX*y+x] & 0xffff) >= (short)(((int)Math.round(threshold)) & 0xffff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
-						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
-					}
-				}
-			}
-		}
-		else if(type==32) {
-			for(int z=0;z<dimZ;z++) {
-				float []tabImg=(float[])img.getStack().getProcessor(z+1).getPixels();
-				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
-				for(int x=0;x<dimX;x++) {
-					for(int y=0;y<dimY;y++) {
-						if( (tabImg[dimX*y+x]) >= threshold )tabRet[dimX*y+x]=(byte)(1 & 0xff);
-						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
-					}
-				}
-			}
-		}
-		else VitiDialogs.notYet("getBinary Mask type "+type);
-		return ret;
-	}
-	
-
+	/** Helpers for visualization of Roi and mask over source images --------------------------------------------*/
 	public static ImagePlus visualizeMaskEffectOnSourceData(ImagePlus imgSourceRGB,ImagePlus mask,int mode0VBOnly_1Enhance_2GreysOther_3greenout) {
 		ImagePlus[]imgSource=VitimageUtils.channelSplitter(imgSourceRGB);
 	
@@ -283,53 +150,54 @@ public class JsonRoiSegmentationConverter {
 		return VitimageUtils.compositeRGBByte(ret[0], ret[1], ret[2],1,1,1);				
 	}
 
-	
-	public static Roi[]pruneRoi(Roi[]roiTab,int targetResolution){
-		int maxPossible=targetResolution-3;
-		int minPossible=2;
-		boolean []take=new boolean[roiTab.length];
-		int select=0;
-		for(int i=0;i<roiTab.length;i++) {
-			take[i]=true;
-			Roi r=roiTab[i];
-			Polygon p=r.getPolygon();
-			for(int val:p.xpoints)if(val<minPossible || val>maxPossible)take[i]=false;
-			for(int val:p.ypoints)if(val<minPossible || val>maxPossible)take[i]=false;
-			if(take[i])select++;
-		}
-		Roi[]tabOut=new Roi[select];
-		int incr=0;
-		for(int i=0;i<roiTab.length;i++) {
-			if(take[i]) {
-				tabOut[incr]=roiTab[i];
-				incr++;
+	public static ImagePlus getSizeMap(ImagePlus img,int threshLow,int step,int nCat,boolean show) {
+
+		ImagePlus imgRet=VitimageUtils.nullImage(img);
+		IJ.run(imgRet,"8-bit","");
+		imgRet.setDisplayRange(0, nCat*step);
+		IJ.run(imgRet,"Fire","");
+		for(int z=0;z<imgRet.getNSlices();z++) {
+			ImagePlus temp=new Duplicator().run(img,1,1,z+1,z+1,1,1);
+			IJ.run(temp,"8-bit","");
+			Roi[]roiTab=segmentationToRoi(temp);
+			ImageProcessor ip=imgRet.getStack().getProcessor(z+1);
+			for(Roi r : roiTab) {
+				int index=(int)Math.floor(getRoiSurface(r))/step+1;
+				if(index>nCat)index=nCat;
+				ip.setValue(index*step);
+				ip.fill(r);
 			}
+			imgRet.getStack().setProcessor(ip, z+1);
 		}
-		//System.out.println("Prune : in="+roiTab.length+" , out="+tabOut.length);
-		return tabOut;			
+		VitimageUtils.showWithParams(imgRet,img.getTitle()+"_size_map",1,0,nCat*step);
+/*			imgRet.show();
+		imgRet.setDisplayRange(0, nCat*step);
+		imgRet.updateAndDraw();
+		IJ.run(imgRet,"Fire","");
+		IJ.run("Brightness/Contrast...");
+		selectWindow("B&C");
+		*/
+		if(!show)imgRet.hide();
+		return imgRet;
 	}
+           
 
-		
+	
 
-		public static ImagePlus cleanVesselSegmentation(ImagePlus seg,int targetResolution,int minNbVox,int maxNbVox) {
-			double voxVol=VitimageUtils.getVoxelVolume(seg);
-			double minVBsurface=voxVol*minNbVox;
-			double maxVBsurface=voxVol*maxNbVox;
 
-			//Remplir les trous inutiles
-			ImagePlus imgSeg=VitimageUtils.getBinaryMask(seg, 0.5);
-			imgSeg.show();
-			IJ.run("Fill Holes", "stack");
-			ImagePlus test1=imgSeg.duplicate();
-			imgSeg.hide();
-			//Retirer les cellules plus petites que et plus grandes que
-			imgSeg=VitimageUtils.connexe2d(imgSeg, 1,256, minVBsurface, maxVBsurface , 6,0,true);
-			ImagePlus test2=imgSeg.duplicate();
-			return VitimageUtils.getBinaryMask(imgSeg,0.5);
-		}
-    
+	/** Comparison of segmentations and computation of similarity scores --------------------------------------------*/    
+    public static double IOU(ImagePlus imgRef,ImagePlus imgVal) {
+    	ImagePlus ref=VitimageUtils.getBinaryMask(imgRef, 0.5);
+    	ImagePlus val=VitimageUtils.getBinaryMask(imgVal, 0.5);
+    	ImagePlus imgOR=VitimageUtils.binaryOperationBetweenTwoImages(ref, val, 1);
+    	ImagePlus imgAND=VitimageUtils.binaryOperationBetweenTwoImages(ref, val, 2);
+    	int nbIm1=nbPixelsInClasses(imgRef)[255];
+    	int nbIm2=nbPixelsInClasses(imgVal)[255];
+    	int nbAND=nbPixelsInClasses(imgAND)[255];
+    	int nbOR=nbPixelsInClasses(imgOR)[255];
+    	return(nbAND*1.0/nbOR);
+    }
 
-    
     public static Object [][] roiPairingHungarianMethod(Roi[]roiTabRef,Roi[]roiTabTest){
         double[][]costMatrix=new double[roiTabRef.length][roiTabTest.length];
         for(int i=0;i<roiTabRef.length;i++) {
@@ -375,7 +243,139 @@ public class JsonRoiSegmentationConverter {
             return ret;
     }
     
+    public static double IOU(Roi r1,Roi r2) {
+        if(r1.getBounds().getMinX()>r2.getBounds().getMaxX())return 0;
+        if(r1.getBounds().getMinY()>r2.getBounds().getMaxY())return 0;
+        if(r2.getBounds().getMinX()>r1.getBounds().getMaxX())return 0;
+        if(r2.getBounds().getMinY()>r1.getBounds().getMaxY())return 0;
 
+        int x0=(int)Math.floor(Math.min(r1.getBounds().getMinX(), r2.getBounds().getMinX()));
+        int x1=(int)Math.ceil(Math.max(r1.getBounds().getMaxX(), r2.getBounds().getMaxX()));
+        int y0=(int)Math.floor(Math.min(r1.getBounds().getMinY(), r2.getBounds().getMinY()));
+        int y1=(int)Math.ceil(Math.max(r1.getBounds().getMaxY(), r2.getBounds().getMaxY()));
+        //System.out.println("Bbox both="+x0+","+x1+","+y0+","+y1);
+        int inter=0;
+        int union=0;
+        for(int x=x0;x<=x1;x++) {
+                for(int y=y0;y<=y1;y++) {
+                        if((r1.contains(x, y)) && (r2.contains(x, y)))inter++;
+                        if((r1.contains(x, y)) || (r2.contains(x, y)))union++;
+                }
+                //System.out.println("Result : "+inter+" , "+union);
+        }
+        return (1.0*inter)/union;
+}
+
+	public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest) {
+		int nLost=0;
+		int nFound=0;
+		double accIOU=0;
+		int nInMore=0;
+		int nTotRef=0;
+		int nTotVal=0;
+		int Z=segTest.getNSlices();
+		int[]nbFoundPerClass=new int[20];
+		int[]nbTotPerClass=new int[20];
+		for(int z=0;z<Z;z++) {
+			ImagePlus binaryRef=new Duplicator().run(segRef,1,1,z+1,z+1,1,1);
+			ImagePlus binaryVal=new Duplicator().run(segTest,1,1,z+1,z+1,1,1);
+            double iouGlob=SegmentationUtils.IOU(binaryRef,binaryVal);
+            Roi[]rRef=SegmentationUtils.segmentationToRoi(binaryRef);
+            Roi[]rVal=SegmentationUtils.segmentationToRoi(binaryVal);
+			nTotRef+=rRef.length;
+			nTotVal+=rVal.length;
+			Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rRef,rVal);
+			for(int i=0;i<tab.length;i++) {	
+//				System.out.println("Matching ref "+i+" with test "+tab[i][0]+" , IOU = "+tab[i][1]+ " , SurfaceRef = "+tab[i][2]+(((Integer)tab[i][0]<0) ? "                                   is lost !" : "") );
+				int index=(int)Math.floor(((Double)tab[i][2]/20.0));
+				if(index>19)index=19;
+				nbTotPerClass[index]++;
+				if((Integer)tab[i][0]<0) {nLost++;continue;}
+				nbFoundPerClass[index]++;
+				nFound++;
+				accIOU+=(Double)(tab[i][1]);
+			}
+			
+			nInMore=nTotVal-nFound;
+			if(true) {
+				System.out.println("\nAfter z="+z);
+				System.out.println("nLost="+nLost);
+				System.out.println("nFound="+nFound);
+				System.out.println("nInMore="+nInMore);
+
+				System.out.println("nThisRef="+rRef.length);
+				System.out.println("nThisVal="+rVal.length);
+				System.out.println("nTotRef="+nTotRef);
+				System.out.println("nTotVal="+nTotVal);
+				System.out.println("accIOU="+(accIOU/nFound));
+			}
+		}
+		accIOU/=nFound;
+		double percent=VitimageUtils.dou(nFound*100.0/nTotRef);
+		double percentOut=VitimageUtils.dou(nInMore*100.0/nTotVal);
+		System.out.println("Summary : #VB found="+nFound+" ("+percent+" %) with mean IOU="+accIOU+" . #VB not found="+nLost+" . #False positives="+nInMore+" (="+percentOut+"%)");
+		for(int i=0;i<4;i++) {
+			System.out.println();
+			for(int j=0;j<5;j++) {
+				int indBase=i*5+j;
+				String percentInd=""+VitimageUtils.dou(nbFoundPerClass[indBase]*100.0/nbTotPerClass[indBase]);
+				if(nbTotPerClass[indBase]==0)percentInd="N/A";
+				System.out.print("Class["+(indBase*20)+" - "+((indBase+1)*20)+"]:"+percentInd+" , ");
+			}
+		}
+		SegmentationUtils.getSizeMap(segRef,0,20,5,true);
+	}
+
+	public static ImagePlus getWatershed(ImagePlus in,ImagePlus marker,ImagePlus mask) {
+		MarkerControlledWatershedTransform2D mark=new MarkerControlledWatershedTransform2D(in.getStack().getProcessor(1), marker.getStack().getProcessor(1), mask.getStack().getProcessor(1),4);
+		ImageProcessor ip=mark.applyWithPriorityQueueAndDams();
+		return new ImagePlus("Results",ip);
+	}
+
+	public static ImagePlus getSegmentationFromProbaMap3D(ImagePlus probaMap) {
+		ImagePlus []tab=new ImagePlus[probaMap.getNSlices()];
+		for(int z=0;z<probaMap.getNSlices();z++) {
+			ImagePlus temp=new Duplicator().run(probaMap,1,1,z+1,z+1,1,1);
+			tab[z]=getSegmentationFromProbaMap2D(temp);
+		}
+		return VitimageUtils.slicesToStack(tab);
+	}
+	
+	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap) {
+		//Lisser l'image de probabilité
+		ImagePlus probaGauss=probaMap.duplicate();
+		IJ.run(probaGauss,"8-bit","");
+		IJ.run(probaGauss, "Gaussian Blur...", "sigma=2 stack");
+		probaGauss.show();
+
+		//Extraire les maxima
+		IJ.run(probaGauss, "Find Maxima...", "prominence=0.75 output=[Single Points]");
+		VitimageUtils.waitFor(100);
+		ImagePlus pts=IJ.getImage();
+		pts.hide();
+		pts.setTitle("Points");
+
+		
+		//Extraire le masque de la zone de proba interessante
+		ImagePlus probaGauss2=probaMap.duplicate();
+		IJ.run(probaGauss2, "Gaussian Blur...", "sigma=2 stack");
+		ImagePlus mask=VitimageUtils.getBinaryMask(probaGauss2, 0.80);
+		
+
+		//Calculer le watershed et les résultats
+		ImagePlus result=getWatershed(probaGauss2, pts, mask);
+		probaGauss.changes=false;
+		probaGauss.close();
+		pts.changes=false;
+		pts.close();
+		return cleanVesselSegmentation(result,512,8,1000);
+//		return result;
+	}
+	
+
+    
+
+    /** Helpers for conversion to / from Json , to / from Roi[] , to / from binary segmentation  -------------- */
     public static ImagePlus []jsonToBinary(String dir) {
             System.out.println(dir);
             
@@ -468,48 +468,6 @@ public class JsonRoiSegmentationConverter {
             }
             return ret;
     }                
-                          
-    public static void resampleJsonAndImageSet(String dirIn,String dirOut,int resampleFactor) {
-            String pathJsonIn=new File(dirIn,"via_region_data.json").getAbsolutePath();                                
-            double fact=1.0/resampleFactor;
-
-            String[]listImages=new File(dirIn).list();
-            for(String s:listImages) {
-                    if(s.contains(".jpg")) {
-                            ImagePlus img=IJ.openImage(new File(dirIn,s).getAbsolutePath());
-                            int targetSize=img.getWidth()/resampleFactor;
-                            img.show();
-                            IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetSize+" height="+targetSize+" interpolation=Bilinear average create");//create
-                            img=IJ.getImage();
-                            IJ.save(img,new File(dirOut,s).getAbsolutePath());
-                            img.changes=false;
-                            img.close();
-                            img=IJ.getImage();
-                            img.changes=false;
-                            img.close();
-                    }
-            }
-            String pathJsonOut=new File(dirOut,"via_region_data.json").getAbsolutePath();
-            String dataIn=VitimageUtils.readStringFromFile(pathJsonIn);
-            String data2=dataIn.replace("\"all_points_x\":[","PPTTXX\n").replace("\"all_points_y\":[","PPTTYY\n");
-            String[]data3=data2.split("\n");
-            String data4=data3[0];
-            for(int lig=1;lig<data3.length;lig++) {
-                    int indCar=data3[lig].indexOf("]");
-                    String toReplace=data3[lig].substring(0, indCar);
-                    String[]numbers=toReplace.split(",");
-                    String replacing="";
-                    for(int ind=0;ind<numbers.length;ind++) {
-                            int nb=(int)Math.round(( (Integer.parseInt(numbers[ind]))*1.0)/resampleFactor);
-                            replacing+=""+nb;
-                            if(ind<numbers.length-1)replacing+=",";
-                    }
-                    data3[lig].replace(toReplace, replacing);
-                    data4+=replacing+data3[lig].substring(indCar)+(lig<data3.length-1 ? "\n" : "");
-            }
-            String data5=data4.replace("PPTTXX", "\"all_points_x\":[").replace("PPTTYY", "\"all_points_y\":[").replace("\n","");
-            VitimageUtils.writeStringInFile(data5, pathJsonOut);
-    }
 
     public static Roi roiParser(String xcoords,String ycoords) {
         int[]tabX=stringTabToDoubleTab(xcoords.split(","));
@@ -525,19 +483,177 @@ public class JsonRoiSegmentationConverter {
 
     public static Roi[]segmentationToRoi(ImagePlus seg){
     	ImagePlus imgSeg=VitimageUtils.getBinaryMask(seg, 0.5);
+    	RoiManager rm=RoiManager.getRoiManager();
+    	rm.close();
     	imgSeg.show();
-//        VitimageUtils.waitFor(100);
+    	IJ.setRawThreshold(imgSeg, 127, 255, null);
+        VitimageUtils.waitFor(100);
+    	
+    	rm=RoiManager.getRoiManager();
+        VitimageUtils.waitFor(100);
         IJ.run("Create Selection");
-        //VitimageUtils.printImageResume(IJ.getImage(),"getImage");
+        VitimageUtils.printImageResume(IJ.getImage(),"getImage");
         Roi r=IJ.getImage().getRoi();
-        //System.out.println(r);
+        System.out.println(r);
         Roi[] rois = ((ShapeRoi)r).getRois();
         IJ.getImage().close();
+        rm.close();
         return rois;
     }
     
+
     
+    
+	/*** Helpers for preparation of data (Roi, images) ---------------------------------------------------*/
+	public static Roi[]pruneRoi(Roi[]roiTab,int targetResolution){
+		int maxPossible=targetResolution-3;
+		int minPossible=2;
+		boolean []take=new boolean[roiTab.length];
+		int select=0;
+		for(int i=0;i<roiTab.length;i++) {
+			take[i]=true;
+			Roi r=roiTab[i];
+			Polygon p=r.getPolygon();
+			for(int val:p.xpoints)if(val<minPossible || val>maxPossible)take[i]=false;
+			for(int val:p.ypoints)if(val<minPossible || val>maxPossible)take[i]=false;
+			if(take[i])select++;
+		}
+		Roi[]tabOut=new Roi[select];
+		int incr=0;
+		for(int i=0;i<roiTab.length;i++) {
+			if(take[i]) {
+				tabOut[incr]=roiTab[i];
+				incr++;
+			}
+		}
+		//System.out.println("Prune : in="+roiTab.length+" , out="+tabOut.length);
+		return tabOut;			
+	}
 
+    public static void resampleJsonAndImageSet(String dirIn,String dirOut,int resampleFactor) {
+        String pathJsonIn=new File(dirIn,"via_region_data.json").getAbsolutePath();                                
+        double fact=1.0/resampleFactor;
 
+        String[]listImages=new File(dirIn).list();
+        for(String s:listImages) {
+                if(s.contains(".jpg")) {
+                        ImagePlus img=IJ.openImage(new File(dirIn,s).getAbsolutePath());
+                        int targetSize=img.getWidth()/resampleFactor;
+                        img.show();
+                        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetSize+" height="+targetSize+" interpolation=Bilinear average create");//create
+                        img=IJ.getImage();
+                        IJ.save(img,new File(dirOut,s).getAbsolutePath());
+                        img.changes=false;
+                        img.close();
+                        img=IJ.getImage();
+                        img.changes=false;
+                        img.close();
+                }
+        }
+        String pathJsonOut=new File(dirOut,"via_region_data.json").getAbsolutePath();
+        String dataIn=VitimageUtils.readStringFromFile(pathJsonIn);
+        String data2=dataIn.replace("\"all_points_x\":[","PPTTXX\n").replace("\"all_points_y\":[","PPTTYY\n");
+        String[]data3=data2.split("\n");
+        String data4=data3[0];
+        for(int lig=1;lig<data3.length;lig++) {
+                int indCar=data3[lig].indexOf("]");
+                String toReplace=data3[lig].substring(0, indCar);
+                String[]numbers=toReplace.split(",");
+                String replacing="";
+                for(int ind=0;ind<numbers.length;ind++) {
+                        int nb=(int)Math.round(( (Integer.parseInt(numbers[ind]))*1.0)/resampleFactor);
+                        replacing+=""+nb;
+                        if(ind<numbers.length-1)replacing+=",";
+                }
+                data3[lig].replace(toReplace, replacing);
+                data4+=replacing+data3[lig].substring(indCar)+(lig<data3.length-1 ? "\n" : "");
+        }
+        String data5=data4.replace("PPTTXX", "\"all_points_x\":[").replace("PPTTYY", "\"all_points_y\":[").replace("\n","");
+        VitimageUtils.writeStringInFile(data5, pathJsonOut);
+}
 
+	public static ImagePlus cleanVesselSegmentation(ImagePlus seg,int targetResolution,int minNbVox,int maxNbVox) {
+			double voxVol=VitimageUtils.getVoxelVolume(seg);
+			double minVBsurface=voxVol*minNbVox;
+			double maxVBsurface=voxVol*maxNbVox;
+
+			//Remplir les trous inutiles
+			ImagePlus imgSeg=VitimageUtils.getBinaryMask(seg, 0.5);
+			imgSeg.show();
+			IJ.run("Fill Holes", "stack");
+			ImagePlus test1=imgSeg.duplicate();
+			imgSeg.hide();
+			//Retirer les cellules plus petites que et plus grandes que
+			imgSeg=VitimageUtils.connexe2d(imgSeg, 1,256, minVBsurface, maxVBsurface , 6,0,true);
+			ImagePlus test2=imgSeg.duplicate();
+			return VitimageUtils.getBinaryMask(imgSeg,0.5);
+		}
+    
+    public static double getRoiSurface(Roi r) {
+        int x0=(int)Math.floor(r.getBounds().getMinX());
+        int x1=(int)Math.floor(r.getBounds().getMaxX());
+        int y0=(int)Math.floor(r.getBounds().getMinY());
+        int y1=(int)Math.floor(r.getBounds().getMaxY());
+        int inter=0;
+        for(int x=x0;x<=x1;x++) {
+            for(int y=y0;y<=y1;y++) {
+                if(r.contains(x, y))inter++;
+            }
+        }
+        return inter;
+   	
+    }
+        
+	public static int[]nbPixelsInClasses(ImagePlus img){
+        int[]tab=img.getStack().getProcessor(1).getHistogram();
+        return tab;
+    }
+       
+	public static ImagePlus getBinaryMaskUnary(ImagePlus img,double threshold) {
+		int dimX=img.getWidth(); int dimY=img.getHeight(); int dimZ=img.getStackSize();
+		int type=(img.getType()==ImagePlus.GRAY8 ? 8 : img.getType()==ImagePlus.GRAY16 ? 16 : img.getType()==ImagePlus.GRAY32 ? 32 : 24);
+		ImagePlus ret=IJ.createImage("", dimX, dimY, dimZ, 8);
+		VitimageUtils.adjustImageCalibration(ret,img);
+		if(type==8) {
+			for(int z=0;z<dimZ;z++) {
+				byte []tabImg=(byte[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xff) >= (byte)(((int)Math.round(threshold)) & 0xff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==16) {
+			for(int z=0;z<dimZ;z++) {
+				short []tabImg=(short[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x] & 0xffff) >= (short)(((int)Math.round(threshold)) & 0xffff)  )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else if(type==32) {
+			for(int z=0;z<dimZ;z++) {
+				float []tabImg=(float[])img.getStack().getProcessor(z+1).getPixels();
+				byte []tabRet=(byte[])ret.getStack().getProcessor(z+1).getPixels();
+				for(int x=0;x<dimX;x++) {
+					for(int y=0;y<dimY;y++) {
+						if( (tabImg[dimX*y+x]) >= threshold )tabRet[dimX*y+x]=(byte)(1 & 0xff);
+						else tabRet[dimX*y+x]=(byte)(0 & 0xff);
+					}
+				}
+			}
+		}
+		else VitiDialogs.notYet("getBinary Mask type "+type);
+		return ret;
+	}
+	
+
+	
 }
