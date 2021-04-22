@@ -13,6 +13,7 @@ import com.phenomen.common.VitimageUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
@@ -199,19 +200,16 @@ public class SegmentationUtils {
     }
 
     public static Object [][] roiPairingHungarianMethod(Roi[]roiTabRef,Roi[]roiTabTest){
+		com.phenomen.common.Timer t=new com.phenomen.common.Timer();
         double[][]costMatrix=new double[roiTabRef.length][roiTabTest.length];
         for(int i=0;i<roiTabRef.length;i++) {
             for(int j=0;j<roiTabTest.length;j++) {
             	costMatrix[i][j]=1-IOU(roiTabRef[i],roiTabTest[j]);
             }
         }
-        
-		HungarianAlgorithm hung=new HungarianAlgorithm(costMatrix);
-		com.phenomen.common.Timer t=new com.phenomen.common.Timer();
-		t.print("Starting hungarian over "+roiTabRef.length+" x "+roiTabTest.length);
-		int []solutions=hung.execute();
-		t.print("Finishing hungarian over "+roiTabRef.length+" x "+roiTabTest.length);
 
+		HungarianAlgorithm hung=new HungarianAlgorithm(costMatrix);
+		int []solutions=hung.execute();
 		Object[][]ret=new Object[roiTabRef.length][];
         for(int i=0;i<roiTabRef.length;i++) {
         	double surface=getRoiSurface(roiTabRef[i]);
@@ -219,6 +217,7 @@ public class SegmentationUtils {
         	else if(IOU(roiTabRef[i],roiTabTest[solutions[i]])<=0) ret[i]=new Object[] {new Integer(-1),new Double(0),new Double(surface)};
         	else ret[i]=new Object[] {solutions[i],IOU(roiTabRef[i],roiTabTest[solutions[i]]),new Double(surface)};
         }    		
+		t.print("Hungarian");
         return ret;
     }
 
@@ -282,22 +281,26 @@ public class SegmentationUtils {
             double iouGlob=SegmentationUtils.IOU(binaryRef,binaryVal);
             Roi[]rRef=SegmentationUtils.segmentationToRoi(binaryRef);
             Roi[]rVal=SegmentationUtils.segmentationToRoi(binaryVal);
-			nTotRef+=rRef.length;
-			nTotVal+=rVal.length;
-			Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rRef,rVal);
-			for(int i=0;i<tab.length;i++) {	
-//				System.out.println("Matching ref "+i+" with test "+tab[i][0]+" , IOU = "+tab[i][1]+ " , SurfaceRef = "+tab[i][2]+(((Integer)tab[i][0]<0) ? "                                   is lost !" : "") );
-				int index=(int)Math.floor(((Double)tab[i][2]/20.0));
-				if(index>19)index=19;
-				nbTotPerClass[index]++;
-				if((Integer)tab[i][0]<0) {nLost++;continue;}
-				nbFoundPerClass[index]++;
-				nFound++;
-				accIOU+=(Double)(tab[i][1]);
-			}
-			
+            if(rVal!=null) {
+				nTotRef+=rRef.length;
+				nTotVal+=rVal.length;
+				Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rRef,rVal);
+				for(int i=0;i<tab.length;i++) {	
+	//				System.out.println("Matching ref "+i+" with test "+tab[i][0]+" , IOU = "+tab[i][1]+ " , SurfaceRef = "+tab[i][2]+(((Integer)tab[i][0]<0) ? "                                   is lost !" : "") );
+					int index=(int)Math.floor(((Double)tab[i][2]/20.0));
+					if(index>19)index=19;
+					nbTotPerClass[index]++;
+					if((Integer)tab[i][0]<0) {nLost++;continue;}
+					nbFoundPerClass[index]++;
+					nFound++;
+					accIOU+=(Double)(tab[i][1]);
+				}
+            }
+            else {
+            	
+            }
 			nInMore=nTotVal-nFound;
-			if(true) {
+			if(false) {
 				System.out.println("\nAfter z="+z);
 				System.out.println("nLost="+nLost);
 				System.out.println("nFound="+nFound);
@@ -332,43 +335,49 @@ public class SegmentationUtils {
 		return new ImagePlus("Results",ip);
 	}
 
-	public static ImagePlus getSegmentationFromProbaMap3D(ImagePlus probaMap) {
+	public static ImagePlus getSegmentationFromProbaMap3D(ImagePlus probaMap,double thresh1,double thresh2) {
+		ImagePlus debug=probaMap.duplicate();
+		debug.setTitle("THIS ONE");
+		debug.show();
+		VitimageUtils.waitFor(5000);
+		debug.hide();
 		ImagePlus []tab=new ImagePlus[probaMap.getNSlices()];
 		for(int z=0;z<probaMap.getNSlices();z++) {
 			ImagePlus temp=new Duplicator().run(probaMap,1,1,z+1,z+1,1,1);
-			tab[z]=getSegmentationFromProbaMap2D(temp);
+			tab[z]=getSegmentationFromProbaMap2D(temp,thresh1,thresh2);
 		}
 		return VitimageUtils.slicesToStack(tab);
 	}
 	
-	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap) {
+	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap,double thresh1,double thresh2) {
 		//Lisser l'image de probabilité
 		ImagePlus probaGauss=probaMap.duplicate();
 		IJ.run(probaGauss,"8-bit","");
 		IJ.run(probaGauss, "Gaussian Blur...", "sigma=2 stack");
-		probaGauss.show();
 
 		//Extraire les maxima
-		IJ.run(probaGauss, "Find Maxima...", "prominence=0.75 output=[Single Points]");
-		VitimageUtils.waitFor(100);
-		ImagePlus pts=IJ.getImage();
-		pts.hide();
+		IJ.run(probaGauss, "Find Maxima...", "prominence="+thresh1+" output=[Single Points]");
+		VitimageUtils.waitFor(200);
+		ImagePlus tmp=IJ.getImage();
+		ImagePlus pts=tmp.duplicate();
+		tmp.close();
 		pts.setTitle("Points");
+		probaGauss.changes=false;
+		probaGauss.close();
 
 		
 		//Extraire le masque de la zone de proba interessante
 		ImagePlus probaGauss2=probaMap.duplicate();
 		IJ.run(probaGauss2, "Gaussian Blur...", "sigma=2 stack");
-		ImagePlus mask=VitimageUtils.getBinaryMask(probaGauss2, 0.80);
+		ImagePlus mask=VitimageUtils.getBinaryMask(probaGauss2, thresh2);
 		
 
 		//Calculer le watershed et les résultats
 		ImagePlus result=getWatershed(probaGauss2, pts, mask);
-		probaGauss.changes=false;
-		probaGauss.close();
 		pts.changes=false;
 		pts.close();
-		return cleanVesselSegmentation(result,512,8,1000);
+		return cleanVesselSegmentation(result,512,2,5000);
+//		return 
 //		return result;
 	}
 	
@@ -492,9 +501,10 @@ public class SegmentationUtils {
     	rm=RoiManager.getRoiManager();
         VitimageUtils.waitFor(100);
         IJ.run("Create Selection");
-        VitimageUtils.printImageResume(IJ.getImage(),"getImage");
+        //VitimageUtils.printImageResume(IJ.getImage(),"getImage");
         Roi r=IJ.getImage().getRoi();
-        System.out.println(r);
+       // System.out.println(r);
+        if(r==null)return null;
         Roi[] rois = ((ShapeRoi)r).getRois();
         IJ.getImage().close();
         rm.close();

@@ -21,9 +21,9 @@ public class Test {
 		probaMap=new Duplicator().run(probaMap,1,1,1,10,1,1);
 		segRef=new Duplicator().run(segRef,1,1,1,10,1,1);
 		
-		ImagePlus segTest=SegmentationUtils.getSegmentationFromProbaMap3D(probaMap);
+	//	ImagePlus segTest=SegmentationUtils.getSegmentationFromProbaMap3D(probaMap);
 		
-		SegmentationUtils.scoreComparisonSegmentations(segRef, segTest);
-		VitimageUtils.compositeNoAdjustOf(segRef, segTest).show();
+		//SegmentationUtils.scoreComparisonSegmentations(segRef, segTest);
+		//VitimageUtils.compositeNoAdjustOf(segRef, segTest).show();
 	}
 }
