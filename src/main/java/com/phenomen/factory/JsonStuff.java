@@ -54,6 +54,7 @@ public class JsonStuff extends PlugInFrame{
         public static boolean CLEAN_VAL=false;
         public static boolean CLEAN_REF=false;
         public static int NSTEPS=4;
+        public static int blabla=0; 
         public static boolean[]getFeatures(){
              	return new boolean[]{
                 true,   /* Gaussian_blur */
