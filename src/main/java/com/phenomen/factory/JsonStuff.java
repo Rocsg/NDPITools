@@ -273,6 +273,7 @@ public class JsonStuff extends PlugInFrame{
     		ImagePlus result=VitimageUtils.meanOfImageArray(resultTab);
             IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(useRotAugValidate ? "_old" : "")+".tif");
         }
+ 
         public static void step_03_apply_model_layer2(int setType,boolean useRotAugValidate) {
         	String dataType="";
         	if(setType==0)dataType="training";

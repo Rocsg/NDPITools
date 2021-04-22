@@ -393,7 +393,7 @@ public class SegmentationUtils {
             int nImgs=listFiles.length-1;
             String s="";
             for(String s2 : listFiles) {
-                    if(s2.contains(".json"))s=s2;
+                if(s2.contains(".json"))s=s2;
             }
             
             String[][][] tabData=convertJsonToRoi(new File(dir,s).getAbsolutePath());
