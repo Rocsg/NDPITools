@@ -147,7 +147,7 @@ public class JsonStuff extends PlugInFrame{
 			new JsonStuff().start();
 		}
 		
-		public static int x = 2;
+		public static int endroitToutPourriPourMettreUneVariable = 2;
 
 
         /** Steps to run  --------------------------------------------------------------------------------------------*/        		
