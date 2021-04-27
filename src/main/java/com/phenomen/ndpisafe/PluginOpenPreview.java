@@ -1,4 +1,4 @@
-package com.phenomen.factory;
+package com.phenomen.ndpisafe;
 import ij.io.OpenDialog;
 import ij.plugin.frame.PlugInFrame;
 

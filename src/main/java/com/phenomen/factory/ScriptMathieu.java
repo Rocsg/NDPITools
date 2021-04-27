@@ -1,6 +1,7 @@
 package com.phenomen.factory;
 
 import com.phenomen.common.VitimageUtils;
+import com.phenomen.mlutils.SegmentationUtils;
 
 import ij.IJ;
 import ij.ImageJ;

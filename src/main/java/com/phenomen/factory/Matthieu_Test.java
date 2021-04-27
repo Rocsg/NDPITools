@@ -3,6 +3,8 @@ package com.phenomen.factory;
 
 //En revanche, les import sont à recopier
 import com.phenomen.common.VitimageUtils;
+import com.phenomen.mlutils.JsonStuff;
+
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;

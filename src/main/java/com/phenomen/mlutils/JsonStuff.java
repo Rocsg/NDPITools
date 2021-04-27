@@ -1,4 +1,4 @@
-package com.phenomen.factory;
+package com.phenomen.mlutils;
 
 import java.awt.Polygon;
 import java.io.File;
@@ -31,7 +31,6 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import trainableSegmentation.*;
 import hr.irb.fastRandomForest.FastRandomForest;
-import com.phenomen.factory.SegmentationUtils;
 import fiji.features.Frangi_;
 
 public class JsonStuff extends PlugInFrame{

@@ -19,7 +19,7 @@
  *
  * Latest release available at http://www.imnc.in2p3.fr/pagesperso/deroulers/software/ndpitools
  */
-package com.phenomen.factory;
+package com.phenomen.ndpisafe;
 
 import ij.IJ;
 import ij.ImageJ;

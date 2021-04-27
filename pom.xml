@@ -148,7 +148,7 @@
 		    <artifactId>Fijiyama</artifactId>
 		    <version>4.0.0</version>	    
 		</dependency> 
-  	<!-- ${basedir} -->
+  		<!-- ${basedir} -->
 
 
 		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->

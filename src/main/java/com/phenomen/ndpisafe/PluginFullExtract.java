@@ -1,4 +1,4 @@
-package com.phenomen.factory;
+package com.phenomen.ndpisafe;
 import com.phenomen.common.VitiDialogs;
 
 import ij.ImagePlus;

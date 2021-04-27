@@ -12,6 +12,7 @@ import com.phenomen.common.TransformUtils;
 import com.phenomen.common.VitiDialogs;
 //import javax.json.stream;
 import com.phenomen.common.VitimageUtils;
+import com.phenomen.mlutils.SegmentationUtils;
 import com.phenomen.registration.ItkTransform;
 
 import ij.IJ;
@@ -31,7 +32,6 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import trainableSegmentation.*;
 import hr.irb.fastRandomForest.FastRandomForest;
-import com.phenomen.factory.SegmentationUtils;
 import fiji.features.Frangi_;
 
 public class TestRomain extends PlugInFrame{
