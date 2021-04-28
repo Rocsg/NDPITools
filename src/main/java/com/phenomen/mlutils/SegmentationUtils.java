@@ -1,7 +1,9 @@
 package com.phenomen.mlutils;
 
+import java.awt.List;
 import java.awt.Polygon;
 import java.io.File;
+import java.io.FileReader;
 import java.util.Iterator;
 import java.util.Random;
 
@@ -10,6 +12,7 @@ import ij.plugin.ChannelSplitter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.opencsv.CSVReader;
 import com.phenomen.common.VitiDialogs;
 import com.phenomen.common.VitimageUtils;
 import com.phenomen.registration.ItkTransform;
@@ -31,6 +34,47 @@ import com.phenomen.common.VitimageUtils;
 
 public class SegmentationUtils {
     
+	
+	public static void testReadCsv() {
+		String[][]tab=readStringTabFromCsv("/home/rfernandez/Téléchargements/Recap_echantillons.xlsx - Image_inventory_2019_T1_WW.csv");
+		for(int i=2;i<tab.length;i++) {//From i=2 because two first lines are not images
+			//For each line
+			System.out.println("Line "+i+" =");
+			for(int j=0;j<tab[i].length;j++) {
+				System.out.print(tab[i][j]+" , ");//Display one element, without \n (endline)
+			}
+			System.out.println();//End of this line
+			System.out.print("Is rejected ? ");
+			if(tab[i][11].equals("")) {
+				System.out.println("No");
+			}
+			else System.out.println("Yes");
+			System.out.print("Total des defauts = ");
+			System.out.println(  (Integer.parseInt(tab[i][7])+Integer.parseInt(tab[i][8])+Integer.parseInt(tab[i][9]) )  );
+			System.out.println();//End of this line
+			System.out.println();//End of this line
+		}
+	}
+	
+	public static String[][]readStringTabFromCsv(String csvPath){
+	    try {
+	    	CSVReader reader = new CSVReader(new FileReader(csvPath)); 
+			java.util.List<String[]> r = reader.readAll();
+			String[][]ret=new String[r.size()][];
+			int Nmax=0;
+			for(int index=0;index<r.size();index++)ret[index]=r.get(index);
+			return ret;
+	    }
+	    catch(Exception e) {
+	    	System.out.println("Got an exception during opening "+csvPath);
+    	}
+	    return null;
+}
+
+	
+	
+	
+	
 	/** Helpers for visualization of Roi and mask over source images --------------------------------------------*/
 	public static ImagePlus visualizeMaskEffectOnSourceData(ImagePlus imgSourceRGB,ImagePlus mask,int mode0VBOnly_1Enhance_2GreysOther_3greenout) {
 		ImagePlus[]imgSource=VitimageUtils.channelSplitter(imgSourceRGB);
