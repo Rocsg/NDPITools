@@ -1,4 +1,4 @@
-package com.phenomen.mlutils;
+package com.phenomen.sorghobff;
 
 import java.awt.Polygon;
 import java.io.File;
@@ -12,6 +12,7 @@ import com.phenomen.common.TransformUtils;
 import com.phenomen.common.VitiDialogs;
 //import javax.json.stream;
 import com.phenomen.common.VitimageUtils;
+import com.phenomen.mlutils.SegmentationUtils;
 import com.phenomen.registration.ItkTransform;
 
 import ij.IJ;
@@ -33,11 +34,10 @@ import trainableSegmentation.*;
 import hr.irb.fastRandomForest.FastRandomForest;
 import fiji.features.Frangi_;
 
-public class JsonStuff extends PlugInFrame{
+public class TestRomain extends PlugInFrame{
 		
-	 
 		private static final long serialVersionUID = 1L;
-		public static String vesselsDir="/home/rfernandez/Bureau/A_Test/Vaisseaux";
+		public static String vesselsDir="/media/fernandr/TOSHIBA EXT/Temp";
 		public static int NUM_TREES=200;
         public static int NUM_FEATS=10;//sqrt (#feat)
         public static int SEED=7;//lucky number
@@ -50,10 +50,7 @@ public class JsonStuff extends PlugInFrame{
         public static int MIN_VB_1024 =MIN_VB_512*4;
         public static int MAX_VB_1024 =MAX_VB_512*4;
         public static boolean NO_PRUNE=true;
-        public static boolean CLEAN_VAL=false;
-        public static boolean CLEAN_REF=false;
         public static int NSTEPS=4;
-        public static int blabla=0; 
         public static boolean[]getFeatures(){
              	return new boolean[]{
                 true,   /* Gaussian_blur */
@@ -86,9 +83,6 @@ public class JsonStuff extends PlugInFrame{
         //Nombres d exemples utilises
         
         
-        public void test() {
-        	VitimageUtils.showWithParams(getAugmentationMap(IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Processing/Step_01_detection/Weka_test/Stack_annotations_512_pix.tif"),1.0,0.3,6),"",1,0.5,1.5);
-        }
         
         public void start (){
     	   IJ.log("Starting training !");
@@ -119,8 +113,7 @@ public class JsonStuff extends PlugInFrame{
     	   int layer=1;
     	   IJ.log(" New!");
     	   //step_02_train_model(512,false,false,scenarioAug,scenarioTrain);
-           //step_03_apply_model(2,false);
-//           step_03_apply_model_layer2(1,false);
+          // step_03_apply_model(2,true);
           // step_03_apply_model_on_validation_data(512,false,false,false,true,scenarioAug,scenarioTrain);
            //step_03_apply_model_on_validation_data(512,false,true,false, makeTestData,scenarioAug,scenarioTrain);
     	   //test();
@@ -128,10 +121,11 @@ public class JsonStuff extends PlugInFrame{
     	   step_04_measure_scores(2,false);
     	 //  step_05_display_results_validation_data(targetResolution,useRotAug,useContAug,useValAug, makeTestData,layer,scenarioAug,scenarioTrain);
    		   //System.out.println("End.");
-   }        
+           System.out.println("Done");
+        }        
 
 		
-		public JsonStuff() {
+		public TestRomain() {
 			super("");
 			}
 		
@@ -143,10 +137,9 @@ public class JsonStuff extends PlugInFrame{
 		public static void main(String[]args) {
             ImageJ ij=new ImageJ();
             WindowManager.closeAllWindows();
-			new JsonStuff().start();
+			new TestRomain().start();
 		}
 		
-		public static int endroitToutPourriPourMettreUneVariable = 2;
 
 
         /** Steps to run  --------------------------------------------------------------------------------------------*/        		
@@ -262,27 +255,28 @@ public class JsonStuff extends PlugInFrame{
         	else if(setType==1)dataType="validate";
         	else dataType="test";        	
         	ImagePlus img=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_source_512_pix.tif");
-        	ImagePlus[] resultTab=new ImagePlus[(useRotAugValidate ? NSTEPS : 1 )];
-        	for(int n=0;n<(useRotAugValidate ? NSTEPS : 1 );n++) {
-    			IJ.log("Running step "+n);
-        		resultTab[n]=wekaApplyModelSlicePerSlice(img,NUM_TREES,NUM_FEATS,SEED,MIN_SIGMA,MAX_SIGMA,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/layer_1_512_pixSCENAUG4STEP"+n+"");
-        		resultTab[n]=new Duplicator().run(resultTab[n],2,2,1,resultTab[n].getNSlices(),1,1);
-                IJ.saveAsTiff(resultTab[n],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+(useRotAugValidate ? "old_" : "")+"STEP"+n+".tif");
+        	ImagePlus[] resultTab=null;
+        	if(!useRotAugValidate) {
+	        	resultTab=new ImagePlus[NSTEPS];
+	        	for(int n=0;n<NSTEPS;n++) {
+	    			IJ.log("Running step "+n);
+	        		resultTab[n]=wekaApplyModelSlicePerSlice(img,NUM_TREES,NUM_FEATS,SEED,MIN_SIGMA,MAX_SIGMA,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/layer_1_512_pixSCENAUG4STEP"+n+"");
+	        		resultTab[n]=new Duplicator().run(resultTab[n],2,2,1,resultTab[n].getNSlices(),1,1);
+	                IJ.saveAsTiff(resultTab[n],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_STEP"+n+".tif");
+	        	}
+        	}
+        	else {
+	        	resultTab=new ImagePlus[1];
+	        	for(int n=0;n<1;n++) {
+	    			IJ.log("Running step "+n);
+	        		resultTab[n]=wekaApplyModelSlicePerSlice(img,NUM_TREES,NUM_FEATS,SEED,MIN_SIGMA,MAX_SIGMA,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/layer_1_512_pixSCENAUG4SCENTRAIN1");
+	        		resultTab[n]=new Duplicator().run(resultTab[n],2,2,1,resultTab[n].getNSlices(),1,1);
+	                IJ.saveAsTiff(resultTab[n],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_old_STEP"+n+".tif");
+	        	}
+        		
         	}
     		ImagePlus result=VitimageUtils.meanOfImageArray(resultTab);
-            IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(useRotAugValidate ? "_old" : "")+".tif");
-        }
- 
-        public static void step_03_apply_model_layer2(int setType,boolean useRotAugValidate) {
-        	String dataType="";
-        	if(setType==0)dataType="training";
-        	else if(setType==1)dataType="validate";
-        	else dataType="test";        	
-        	ImagePlus img=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(useRotAugValidate ? "_old" : "")+".tif");
-    		ImagePlus resultTab=wekaApplyModelSlicePerSlice(img,NUM_TREES,NUM_FEATS,SEED,MIN_SIGMA,MAX_SIGMA,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/layer_2_512_pixSCENAUG3");
-    		resultTab=new Duplicator().run(resultTab,2,2,1,resultTab.getNSlices(),1,1);
-            IJ.saveAsTiff(resultTab,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_layer2"+(useRotAugValidate ? "_old" : "")+".tif");
-        	
+            IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_old.tif");
         }
                
 		public static void step_04_measure_scores_on_validation_data(int targetResolution,boolean useRotAug,boolean useContAug,boolean useRotAugVal,boolean makeTest,int layer,int scenarioAug,int scenarioTrain) {
@@ -291,9 +285,7 @@ public class JsonStuff extends PlugInFrame{
             ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Result_proba_layer_"+layer+"_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(useRotAugVal ? "_AUGVAL" : "")+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Stack_annotations_"+targetResolution+"_pix.tif");
             VitimageUtils.printImageResume(binaryValT);
-			binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,0.5,0.5);
-			if(CLEAN_VAL)binaryValT=SegmentationUtils.cleanVesselSegmentation(binaryValT,targetResolution, MIN_VB_512, MAX_VB_512);
-			if(CLEAN_REF)binaryRefT=SegmentationUtils.cleanVesselSegmentation(binaryRefT,targetResolution, MIN_VB_512, MAX_VB_512);
+			binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,0.75,0.8);
 			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
 		}
 		
@@ -303,22 +295,20 @@ public class JsonStuff extends PlugInFrame{
         	if(setType==0)dataType="training";
         	else if(setType==1)dataType="validate";
         	else dataType="test";        	
-        	String chaine=3>2 ? "_layer2" : "";
         	System.out.println(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba.tif");
-            ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+chaine+(useAugVal ? "_old":"")+".tif");
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations_512_pix.tif");
-            VitimageUtils.printImageResume(binaryValT);
-            for(double d1=0.3;d1<0.9;d1+=0.1){
-            	System.out.println("\n "+d1+"  -  "+d1);
-            	System.out.println("Pouet 1");
-            	binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,d1,d1);
-            	System.out.println("Pouet 2");
-            	SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
-            	System.out.println("Pouet 3");
-//				WindowManager.closeAllWindows();
-            }
-			VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT).show();
+            double d1=80;
+            double d2=0.75;
+                System.out.println("\n\n"+d1+" "+d2);
+            	ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba.tif");
+            	binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,d1,d2);
+    			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+    			
+            
+//			VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT).show();
+			VitimageUtils.waitFor(500000);
 		}
+
 
 		public static void step_05_display_results_validation_data(int targetResolution,boolean useRotAug,boolean useContAug,boolean useRotAugVal,boolean makeTest,int layer,int scenarioAug,int scenarioTrain) {
 			System.out.println(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Result_proba_layer_"+layer+"_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(useRotAugVal ? "_AUGVAL" : "")+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");
@@ -331,8 +321,6 @@ public class JsonStuff extends PlugInFrame{
 		}
 
        
-		
-		
 
         /** Weka train and apply model --------------------------------------------------------------------------------------------*/        
        public static ImagePlus wekaTrainModel(ImagePlus img,ImagePlus mask,int numTrees,int numFeatures,int seed,int minSigma,int maxSigma,String modelName) {
@@ -411,7 +399,7 @@ public class JsonStuff extends PlugInFrame{
             System.out.print("weka step 6  ");
 
             // Add labeled samples in a balanced and random way
-            seg.updateWholeImageData();
+       //     seg.updateWholeImageData();
             System.out.print("weka step 65  ");
             seg.loadClassifier(modelName+".model");
         
@@ -451,7 +439,7 @@ public class JsonStuff extends PlugInFrame{
             seg.setEnabledFeatures( enableFeatures );
 
             // Add labeled samples in a balanced and random way
-            seg.updateWholeImageData();
+       //     seg.updateWholeImageData();
             System.out.println("Loading model");
             seg.loadClassifier(modelName+".model");
             System.out.println("Loaded");
@@ -477,11 +465,46 @@ public class JsonStuff extends PlugInFrame{
             Runtime. getRuntime(). gc();
             return probabilityMaps;
     }
-       
+
+        public static ImagePlus wekaApplyModelToInputDir(String inputImageDir,String inputModelDir,String outputDir) {
+            long startTime = System.currentTimeMillis();
+            ImagePlus img=new ImagePlus();
+            String modelName="";
+//            ImagePlus img=new Duplicator().run(img2,1,1,1,2,1,1);
+            WekaSegmentation seg = new WekaSegmentation(new Duplicator().run(img,1,1,1,1,1,1));
+            // Classifier
+            FastRandomForest rf = new FastRandomForest();
+            seg.setClassifier(rf);          
+
+            // Add labeled samples in a balanced and random way
+            System.out.println("Loading model");
+            seg.loadClassifier(modelName+".model");
+            System.out.println("Loaded");
+
+            
+            // Apply trained classifier to test image and get probabilities
+            ImagePlus []inTab=VitimageUtils.stackToSlices(img);
+            ImagePlus [][]outTab=new ImagePlus[seg.getNumOfClasses()][inTab.length];
+            ImagePlus []outTabChan=new ImagePlus[seg.getNumOfClasses()];
+            for(int i=0;i<inTab.length;i++) {
+            	System.out.println("Applying Classifier to slice number "+i);
+            	ImagePlus temp=seg.applyClassifier( inTab[i], 0, true);//Sortie : C2 Z1
+            	for(int c=0;c<seg.getNumOfClasses();c++)outTab[c][i] = new Duplicator().run(temp,c+1,c+1,1,1,1,1); // sortie C x Z cases
+            }
+        	System.out.println("Ok");
+            for(int i=0;i<seg.getNumOfClasses();i++)outTabChan[i]=VitimageUtils.slicesToStack(outTab[i]);//sortie C cases de Z stacks
+            ImagePlus probabilityMaps=VitimageUtils.hyperStackingChannels(outTabChan);
+            System.out.print("weka step 9  ");
+            probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+            // Print elapsed time
+            long estimatedTime = System.currentTimeMillis() - startTime;
+            IJ.log( "** Finished script in " + estimatedTime + " ms **" );
+            Runtime. getRuntime(). gc();
+            return probabilityMaps;
+    }
+
+        
                
-        
-        
-        
         /** Routines for data augmentation --------------------------------------------------------------------------------------------*/        
 		public static ImagePlus rotationAugmentationStack(ImagePlus imgIn){
 			int N=imgIn.getNSlices();

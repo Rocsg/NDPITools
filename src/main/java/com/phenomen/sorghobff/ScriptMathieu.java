@@ -1,4 +1,4 @@
-package com.phenomen.factory;
+package com.phenomen.sorghobff;
 
 import com.phenomen.common.VitimageUtils;
 import com.phenomen.mlutils.SegmentationUtils;

@@ -1,9 +1,9 @@
 //Le package n'est pas à recopier, sinon beanshell ne captera pas
-package com.phenomen.factory;
+package com.phenomen.sorghobff;
 
 //En revanche, les import sont à recopier
 import com.phenomen.common.VitimageUtils;
-import com.phenomen.mlutils.JsonStuff;
+import com.phenomen.mlutils.SegmentationUtils;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -30,7 +30,7 @@ public class Matthieu_Test {
 		imgTest.show();
 
 		//On peut appeler des fonctions du package
-		ImagePlus testField=JsonStuff.getAugmentationMap(imgTest,1,0.4,5);
+		ImagePlus testField=SegmentationUtils.getAugmentationMap(imgTest,1,0.4,5);
 		testField.setTitle("Mon image d augmentation");
 		IJ.run(testField,"Fire","");
 		testField.show();

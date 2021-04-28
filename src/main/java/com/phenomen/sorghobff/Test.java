@@ -1,4 +1,4 @@
-package com.phenomen.factory;
+package com.phenomen.sorghobff;
 
 import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
 import com.phenomen.common.VitimageUtils;

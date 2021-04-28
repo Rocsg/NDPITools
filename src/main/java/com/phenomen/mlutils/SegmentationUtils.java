@@ -3,6 +3,8 @@ package com.phenomen.mlutils;
 import java.awt.Polygon;
 import java.io.File;
 import java.util.Iterator;
+import java.util.Random;
+
 import ij.plugin.ChannelSplitter;
 
 import org.json.JSONArray;
@@ -10,7 +12,9 @@ import org.json.JSONObject;
 
 import com.phenomen.common.VitiDialogs;
 import com.phenomen.common.VitimageUtils;
+import com.phenomen.registration.ItkTransform;
 
+import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -21,6 +25,7 @@ import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
+import trainableSegmentation.WekaSegmentation;
 
 import com.phenomen.common.VitimageUtils;
 
@@ -382,7 +387,325 @@ public class SegmentationUtils {
 	}
 	
 
+	
+    /** Weka train and apply model --------------------------------------------------------------------------------------------*/        
+   public static void wekaTrainModel(ImagePlus img,ImagePlus mask,int[]classifierParams,boolean[]enableFeatures,String modelName) {
+	   int numTrees=classifierParams[0];
+	   int numFeatures=classifierParams[1];
+	   int seed=classifierParams[2];
+	   int minSigma=classifierParams[3];
+	   int maxSigma=classifierParams[4];
+	   VitimageUtils.printImageResume(img); 
+       VitimageUtils.printImageResume(mask); 
+	   Runtime. getRuntime(). gc();
+        long startTime = System.currentTimeMillis();
+        WekaSegmentation seg = new WekaSegmentation(img);
+
+        // Classifier
+        FastRandomForest rf = new FastRandomForest();
+        rf.setNumTrees(numTrees);                  
+        rf.setNumFeatures(numFeatures);  
+        rf.setSeed( seed );    
+        seg.setClassifier(rf);    
+        // Parameters  
+        seg.setMembranePatchSize(11);  
+        seg.setMinimumSigma(minSigma);
+        seg.setMaximumSigma(maxSigma);
+  
     
+        // Enable features in the segmentator
+        seg.setEnabledFeatures( enableFeatures );
+
+        // Add labeled samples in a balanced and random way
+
+        int[]nbPix=SegmentationUtils.nbPixelsInClasses(mask);
+        int min=Math.min(nbPix[0],nbPix[255]);
+        int targetExamplesPerSlice=N_EXAMPLES/(2*img.getNSlices());
+        System.out.println("Starting training on "+targetExamplesPerSlice+" examples per slice");
+        seg.addRandomBalancedBinaryData(img, mask, "class 2", "class 1", targetExamplesPerSlice);
+        Runtime. getRuntime(). gc();
+        
+        // Train classifier
+        seg.trainClassifier();
+        seg.saveClassifier(modelName+".model");
+        // Apply trained classifier to test image and get probabilities
+        //ImagePlus probabilityMaps = seg.applyClassifier( img, 0, true);
+        //probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+        // Print elapsed time
+        long estimatedTime = System.currentTimeMillis() - startTime;
+        IJ.log( "** Finished script in " + estimatedTime + " ms **" );
+        seg=null;
+		Runtime.getRuntime().gc();
+    }
+            
+    public static ImagePlus wekaApplyModel(ImagePlus img,int []classifierParams,boolean[]enableFeatures,String modelName) {
+ 	   int numTrees=classifierParams[0];
+ 	   int numFeatures=classifierParams[1];
+ 	   int seed=classifierParams[2];
+ 	   int minSigma=classifierParams[3];
+ 	   int maxSigma=classifierParams[4];
+        long startTime = System.currentTimeMillis();
+        System.out.print("weka step 1   ");
+        WekaSegmentation seg = new WekaSegmentation(img);
+        System.out.print("weka step 2   ");
+
+        // Classifier
+        FastRandomForest rf = new FastRandomForest();
+        rf.setNumTrees(300);                  
+        rf.setNumFeatures(14);  
+        rf.setSeed( seed );    
+        System.out.print("weka step 3  ");
+        seg.setClassifier(rf);    
+        // Parameters  
+        System.out.print("weka step 4  ");
+        seg.setMembranePatchSize(11);  
+        seg.setMinimumSigma(minSigma);
+        seg.setMaximumSigma(maxSigma);
+        System.out.print("weka step 5  ");
+  
+     
+        // Enable features in the segmentator
+        seg.setEnabledFeatures( enableFeatures );
+        System.out.print("weka step 6  ");
+
+        // Add labeled samples in a balanced and random way
+        seg.updateWholeImageData();
+        System.out.print("weka step 65  ");
+        seg.loadClassifier(modelName+".model");
+        VitimageUtils.garbageCollector();
+        System.out.print("weka step 7  ");
+        // Train classifier
+
+        // Apply trained classifier to test image and get probabilities
+        ImagePlus probabilityMaps = seg.applyClassifier( img, 0, true);
+        System.out.print("weka step 9  ");
+        probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+        // Print elapsed time
+        long estimatedTime = System.currentTimeMillis() - startTime;
+        IJ.log( "** Finished script in " + estimatedTime + " ms **" );
+        seg=null;
+        Runtime.getRuntime().gc();
+        return probabilityMaps;
+}
+
+    public static ImagePlus wekaApplyModelSlicePerSlice(ImagePlus img,int[]classifierParams,boolean[]enableFeatures,String modelName) {
+ 	   int numTrees=classifierParams[0];
+ 	   int numFeatures=classifierParams[1];
+ 	   int seed=classifierParams[2];
+ 	   int minSigma=classifierParams[3];
+ 	   int maxSigma=classifierParams[4];
+       long startTime = System.currentTimeMillis();
+       WekaSegmentation seg = new WekaSegmentation(new Duplicator().run(img,1,1,1,1,1,1));
+        // Classifier
+        FastRandomForest rf = new FastRandomForest();
+        rf.setNumTrees(numTrees);                  
+        rf.setNumFeatures(numFeatures);  
+        rf.setSeed( seed );    
+        seg.setClassifier(rf);    
+        // Parameters  
+        seg.setMembranePatchSize(11);  
+        seg.setMinimumSigma(minSigma);
+        seg.setMaximumSigma(maxSigma);
+      
+        // Enable features in the segmentator
+        seg.setEnabledFeatures( enableFeatures );
+
+        // Add labeled samples in a balanced and random way
+        seg.updateWholeImageData();
+        System.out.println("Loading model");
+        seg.loadClassifier(modelName+".model");
+        System.out.println("Loaded");
+
+        
+        // Apply trained classifier to test image and get probabilities
+        ImagePlus []inTab=VitimageUtils.stackToSlices(img);
+        ImagePlus [][]outTab=new ImagePlus[seg.getNumOfClasses()][inTab.length];
+        ImagePlus []outTabChan=new ImagePlus[seg.getNumOfClasses()];
+        for(int i=0;i<inTab.length;i++) {
+        	System.out.println("Applying Classifier to slice number "+i);
+        	ImagePlus temp=seg.applyClassifier( inTab[i], 0, true);//Sortie : C2 Z1
+        	for(int c=0;c<seg.getNumOfClasses();c++)outTab[c][i] = new Duplicator().run(temp,c+1,c+1,1,1,1,1); // sortie C x Z cases
+        }
+    	System.out.println("Ok");
+        for(int i=0;i<seg.getNumOfClasses();i++)outTabChan[i]=VitimageUtils.slicesToStack(outTab[i]);//sortie C cases de Z stacks
+        ImagePlus probabilityMaps=VitimageUtils.hyperStackingChannels(outTabChan);
+        System.out.print("weka step 9  ");
+        probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+        // Print elapsed time
+        long estimatedTime = System.currentTimeMillis() - startTime;
+        IJ.log( "** Finished script in " + estimatedTime + " ms **" );
+        inTab=null;
+        outTab=null;
+        outTabChan=null;
+        Runtime. getRuntime(). gc();
+        return probabilityMaps;
+}
+   
+           
+    
+    
+    
+    /** Routines for data augmentation --------------------------------------------------------------------------------------------*/        
+	public static ImagePlus rotationAugmentationStack(ImagePlus imgIn,double probaRotation,int repetitions){
+		int N=imgIn.getNSlices();
+		ImagePlus []tabSlicesOut=new ImagePlus[repetitions*N];
+		ImagePlus[]tab2=VitimageUtils.stackToSlices(imgIn);
+		for(int i=0;i<repetitions;i++) {
+			for(int j=0;j<N;j++) {
+				tabSlicesOut[(i)*N+j]=tab2[j].duplicate();
+			}
+		}
+		
+		Random rand=new Random();
+		for(int i=0;i<tabSlicesOut.length;i++) {
+			double p=rand.nextDouble();
+			tabSlicesOut[i].show();
+			if(p<probaRotation)IJ.run("Rotate 90 Degrees Right");
+			tabSlicesOut[i].hide();
+		}
+		return VitimageUtils.slicesToStack(tabSlicesOut);
+	}
+		
+	public static ImagePlus colorAugmentationStack(ImagePlus imgIn,boolean isMask,int nMult,double std,boolean keepOriginal){
+		int N=imgIn.getNSlices();
+		double mean=1;
+		int frequency=5;
+		ImagePlus []tabOut=new ImagePlus[nMult];
+		ImagePlus []tabSlicesOut=new ImagePlus[N*nMult];
+		int i=0;
+		for(int iMult=0;iMult<nMult;iMult++) {
+			System.out.println("Processing brightness "+iMult);
+			tabOut[iMult]=imgIn.duplicate();
+			if(isMask ||  (iMult==0 && keepOriginal)) {
+				for(int j=0;j<N;j++) {
+					ImagePlus[]tab2=VitimageUtils.stackToSlices(tabOut[iMult]);
+					System.out.println("Copy tab "+j+" to tabOut "+(iMult*N+j));
+					tabSlicesOut[(iMult)*N+j]=tab2[j].duplicate();
+				}
+				continue;
+			}
+			ImagePlus augmentationMapR=getAugmentationMap(imgIn,mean,std,frequency);
+			ImagePlus augmentationMapG=getAugmentationMap(imgIn,mean,std,frequency);
+			ImagePlus augmentationMapB=getAugmentationMap(imgIn,mean,std,frequency);
+			tabOut[iMult].setTitle("temp");
+			tabOut[iMult].show();
+			IJ.selectWindow("temp");
+			IJ.run("Split Channels");
+			tabOut[iMult].close();
+			ImagePlus imgR=ij.WindowManager.getImage("temp (red)");
+			ImagePlus imgG=ij.WindowManager.getImage("temp (green)");
+			ImagePlus imgB=ij.WindowManager.getImage("temp (blue)");
+			
+			ImagePlus imgR2=VitimageUtils.makeOperationBetweenTwoImages(imgR, augmentationMapR, 2, false);
+			ImagePlus imgG2=VitimageUtils.makeOperationBetweenTwoImages(imgG, augmentationMapG, 2, false);
+			ImagePlus imgB2=VitimageUtils.makeOperationBetweenTwoImages(imgB, augmentationMapB, 2, false);
+			imgR.close();imgG.close();imgB.close();imgR2.show();imgG2.show();imgB2.show();imgR2.setTitle("temp (red)");imgG2.setTitle("temp (green)");imgB2.setTitle("temp (blue)");
+
+			IJ.run("Merge Channels...", "c1=[temp (red)] c2=[temp (green)] c3=[temp (blue)] create");
+			IJ.run("Stack to RGB", "slices keep");
+			tabOut[iMult]=IJ.getImage();
+			ImagePlus[]tab2=VitimageUtils.stackToSlices(tabOut[iMult]);
+			for(int j=0;j<N;j++) {
+				System.out.println("Copy tab "+j+" to tabOut "+(iMult*N+j));
+				tabSlicesOut[(iMult)*N+j]=tab2[j].duplicate();
+			}
+			WindowManager.getImage("Composite").close();
+			WindowManager.getImage("Composite-1").close();
+		}
+		Runtime. getRuntime(). gc();
+		System.out.println("Assembling tab of "+tabSlicesOut.length);
+		return VitimageUtils.slicesToStack(tabSlicesOut);
+	}
+		
+	public static ImagePlus brightnessAugmentationStack(ImagePlus imgIn,boolean isMask,int nMult,double std,boolean keepOriginal){
+		int N=imgIn.getNSlices();
+		double mean=1;
+		int frequency=5;
+		ImagePlus []tabOut=new ImagePlus[nMult];
+		ImagePlus []tabSlicesOut=new ImagePlus[N*nMult];
+		int i=0;
+		for(int iMult=0;iMult<nMult;iMult++) {
+			System.out.println("T1");VitimageUtils.waitFor(1000);
+			System.out.println("Processing brightness "+iMult);
+			tabOut[iMult]=imgIn.duplicate();
+			if(isMask || (iMult==0 && keepOriginal)) {
+				for(int j=0;j<N;j++) {
+					ImagePlus[]tab2=VitimageUtils.stackToSlices(tabOut[iMult]);
+					System.out.println("Copy tab "+j+" to tabOut "+(iMult*N+j));
+					tabSlicesOut[(iMult)*N+j]=tab2[j].duplicate();
+				}
+				continue;
+			}
+			System.out.println("T2");VitimageUtils.waitFor(1000);
+			ImagePlus augmentationMap=getAugmentationMap(imgIn,mean,std,frequency);
+			tabOut[iMult].setTitle("temp");
+			tabOut[iMult].show();
+			IJ.selectWindow("temp");
+			IJ.run("Split Channels");
+			System.out.println("T3");VitimageUtils.waitFor(1000);
+			tabOut[iMult].close();
+			ImagePlus imgR=ij.WindowManager.getImage("temp (red)");
+			ImagePlus imgG=ij.WindowManager.getImage("temp (green)");
+			ImagePlus imgB=ij.WindowManager.getImage("temp (blue)");
+			
+			ImagePlus imgR2=VitimageUtils.makeOperationBetweenTwoImages(imgR, augmentationMap, 2, false);
+			ImagePlus imgG2=VitimageUtils.makeOperationBetweenTwoImages(imgG, augmentationMap, 2, false);
+			ImagePlus imgB2=VitimageUtils.makeOperationBetweenTwoImages(imgB, augmentationMap, 2, false);
+			imgR.close();imgG.close();imgB.close();imgR2.show();imgG2.show();imgB2.show();imgR2.setTitle("temp (red)");imgG2.setTitle("temp (green)");imgB2.setTitle("temp (blue)");
+			System.out.println("T4");VitimageUtils.waitFor(1000);
+
+			IJ.run("Merge Channels...", "c1=[temp (red)] c2=[temp (green)] c3=[temp (blue)] create");
+			IJ.run("Stack to RGB", "slices keep");
+			tabOut[iMult]=IJ.getImage();
+			ImagePlus[]tab2=VitimageUtils.stackToSlices(tabOut[iMult]);
+			System.out.println("T5");VitimageUtils.waitFor(1000);
+			for(int j=0;j<N;j++) {
+				System.out.println("Copy tab "+j+" to tabOut "+(iMult*N+j));
+				tabSlicesOut[(iMult)*N+j]=tab2[j].duplicate();
+			}
+			WindowManager.getImage("Composite").close();
+			WindowManager.getImage("Composite-1").close();
+		}
+		System.out.println("T6");VitimageUtils.waitFor(1000);
+		Runtime. getRuntime(). gc();
+		System.out.println("Assembling tab of "+tabSlicesOut.length);
+		return VitimageUtils.slicesToStack(tabSlicesOut);
+	}
+
+    public static ImagePlus getAugmentationMap(ImagePlus imgIn,double mean,double std,int frequency) {
+    	int Z=imgIn.getNSlices();
+    	int X=imgIn.getWidth();
+    	int Y=imgIn.getHeight();
+    	ImagePlus []slices=new ImagePlus[Z];
+    	ImagePlus sliceExample=new Duplicator().run(imgIn,1,1,1,1,1,1);
+    	Random rand=new Random();
+    	int[][]coordinates=new int[frequency*frequency][3];
+    	double []values=new double[frequency*frequency];
+    	for(int x=0;x<frequency;x++)for(int y=0;y<frequency;y++) {
+    		coordinates[x*frequency+y]=new int[] {
+    				(int)Math.round(((x+0.5)*X*1.0)/frequency),
+    				(int)Math.round(((y+0.5)*Y*1.0)/frequency),
+    				0
+    		};
+    		//System.out.println(TransformUtils.stringVector(coordinates[x*frequency+y],""));
+    	}
+    	for(int z=0;z<Z;z++) {
+    		for(int x=0;x<frequency;x++)for(int y=0;y<frequency;y++)values[x*frequency+y]=rand.nextGaussian()*std+mean;
+    		slices[z]=ItkTransform.smoothImageFromCorrespondences(coordinates,values, sliceExample,X/frequency,false);
+    		VitimageUtils.waitFor(100);
+    	}
+    	return VitimageUtils.slicesToStack(slices);
+    	
+    }
+     
+          
+
+	
+	
+	
+	
+	
+	
 
     /** Helpers for conversion to / from Json , to / from Roi[] , to / from binary segmentation  -------------- */
     public static ImagePlus []jsonToBinary(String dir) {
@@ -665,5 +988,39 @@ public class SegmentationUtils {
 	}
 	
 
-	
+	public static int NUM_TREES=200;
+    public static int NUM_FEATS=10;//sqrt (#feat)
+    public static int MIN_SIGMA=2;
+    public static int MAX_SIGMA=32;
+    public static int N_EXAMPLES=1000000;//1M
+
+    public static int[]getStandardRandomForestParams(int seed){
+	   return new int[] {NUM_TREES,NUM_FEATS,seed,MIN_SIGMA,MAX_SIGMA};
+    }
+
+    public static boolean[]getStandardRandomForestFeatures(){
+     	return new boolean[]{
+        true,   /* Gaussian_blur */
+        true,   /* Sobel_filter */
+        true,   /* Hessian */
+        true,   /* Difference_of_gaussians */
+        false,   /* Membrane_projections */
+        true,  /* Variance */
+        true,  /* Mean */
+        true,  /* Minimum */
+        true,  /* Maximum */
+        false,  /* Median */
+        false,  /* Anisotropic_diffusion */
+        false,  /* Bilateral */
+        false,  /* Lipschitz */
+        false,  /* Kuwahara */
+        true,  /* Gabor */
+        true,  /* Derivatives */
+        true,  /* Laplacian */
+        false,  /* Structure */
+        false,  /* Entropy */
+        false   /* Neighbors */
+	};
+}
+
 }
