@@ -143,12 +143,14 @@
 		    <type>jar</type>
 		</dependency>
 
-		<dependency>
+		 <dependency>
 		    <groupId>com.phenomen</groupId>
 		    <artifactId>Fijiyama</artifactId>
-		    <version>4.0.0</version>	    
+		    <version>4.0.0</version>
+		    <scope>system</scope>
+			<systemPath>${basedir}/lib/Fijiyama/Fijiyama-jar/4.0.0/Fijiyama-4.0.0.jar</systemPath>	    
 		</dependency> 
-  		<!-- ${basedir} -->
+  	<!--${basedir} -->
 
 
 		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
