@@ -21,11 +21,11 @@ public class ScriptMathieu {
     public static void faireTest0() {        
         System.out.println("Blabla");
     }
-    
-    public static void fonctionNeueneu() {
-    	System.out.println("Ne faiut rien");
-    }
 
+    public static void maCame() {
+    	System.out.println("Test merge");
+    }
+    
     public static void faireTest1() {        
         ImagePlus impRef = IJ.openImage("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/FromRomain/To_Mat/Weka_test/Stack_annotations_512_pix.tif");
         ImagePlus impTest = IJ.openImage("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/FromRomain/To_Mat/Marc_test/Stack_annotations_512_pix.tif");
