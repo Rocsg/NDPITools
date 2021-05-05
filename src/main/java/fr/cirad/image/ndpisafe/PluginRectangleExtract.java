@@ -23,10 +23,17 @@ public class PluginRectangleExtract extends PlugInFrame{
 		ImagePlus imgOut=ndpi.getExtract(level,x0,y0,dx,dy);
 		imgOut.show();		
 	}	
-	public ImagePlus runHeadless(ImagePlus img,double x0,double y0,double dx, double dy) {
+
+	public ImagePlus runHeadlessFromImagePlus(ImagePlus img,int level,double x0,double y0,double dx, double dy) {
 		NDPI ndpi=new NDPI((String) img.getProperty("PreviewOfNDPIPath"));
-		int level=VitiDialogs.getIntUI("Choose a resolution level (0=high-res, "+ndpi.N+"=low-res"+"Level",ndpi.previewLevelN); 
 		ImagePlus imgOut=ndpi.getExtract(level,x0,y0,dx,dy);
 		return imgOut;		
 	}	
+
+	public ImagePlus runHeadlessFromNDPI(NDPI myNdpi,int level,double x0,double y0,double dx, double dy) {
+		ImagePlus imgOut=myNdpi.getExtract(level,x0,y0,dx,dy);
+		return imgOut;		
+	}	
+
+
 }
