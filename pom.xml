@@ -82,18 +82,17 @@
                     <version>3.17</version>
                 </dependency>
            <!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
-<dependency>
-    <groupId>fr.inra.ijpb</groupId>
-    <artifactId>MorphoLibJ_</artifactId>
-    <version>1.4.2.1</version>
-</dependency>
-          
-          <!-- https://mvnrepository.com/artifact/com.opencsv/opencsv -->
-				<dependency>
-    				<groupId>com.opencsv</groupId>
-   					<artifactId>opencsv</artifactId>
-    				<version>5.4</version>
-				</dependency>
+			<dependency>
+			    <groupId>fr.inra.ijpb</groupId>
+			    <artifactId>MorphoLibJ_</artifactId>
+			    <version>1.4.2.1</version>
+			</dependency>
+   
+		   <dependency>
+		      <groupId>com.opencsv</groupId>
+		      <artifactId>opencsv</artifactId>
+		      <version>5.4</version>
+		  </dependency>
           
             <dependency>
                     <groupId>org.json</groupId>
@@ -151,7 +150,15 @@
                 </dependency>
 
                  <dependency>
-                    <groupId>com.phenomen</groupId>
+                    <groupId>fr.cirad.image</groupId>
+                    <artifactId>HyperWeka</artifactId>
+                    <version>4.0.0</version>
+                    <scope>system</scope>
+                        <systemPath>${basedir}/lib/HyperWeka/HyperWeka-jar/0.0.1/HyperWeka-0.0.1.jar</systemPath>            
+                </dependency>
+                
+                 <dependency>
+                    <groupId>fr.cirad.image</groupId>
                     <artifactId>Fijiyama</artifactId>
                     <version>4.0.0</version>
                     <scope>system</scope>
@@ -201,7 +208,6 @@
                     <scope>system</scope>
                         <systemPath>${basedir}/lib/JAI-codec/JAI-codec-jar/1.1.3/JAI-codec.1.1.3.jar</systemPath>
                 </dependency>
-                
 
 
 
