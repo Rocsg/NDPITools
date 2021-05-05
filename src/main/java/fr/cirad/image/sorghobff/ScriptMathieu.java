@@ -67,14 +67,14 @@ public class ScriptMathieu {
     
     
     public static void listImgToProcess() {
-    	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
+    /*	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
     	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
     	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
     	
     	//String [][]finalSheet = {{"Location","Side"}};
     	
     	for(int i=0;i<baseSheet.length;i++) {
-    		System.out.println("Accepté ?"+baseSheet[i][11].equals(""));
+    		System.out.println("Accepte ?"+baseSheet[i][11].equals(""));
     		if(baseSheet[i][11].equals("")) {
     			String[] intermediarySheet = {baseSheet[i][4],baseSheet[i][6]};
     			finalSheet.add(intermediarySheet);
@@ -82,14 +82,14 @@ public class ScriptMathieu {
     		}
     	}
     	String [][] finalTab = finalSheet.toArray(new String[finalSheet.size()][2]);
-    	System.out.println("La taille initiale était "+baseSheet.length+" et la taille finale est "+finalSheet.size());
+    	System.out.println("La taille initiale etait "+baseSheet.length+" et la taille finale est "+finalSheet.size());
     	System.out.println(finalTab[3][1]);
     	
     	for(String[]s:finalSheet)System.out.println(s[0]+" "+s[1]);
+    	*/
     	
-    	
-    	String basePath ="D:/DONNEES/Test"; //Main directory with all NDPI
-    	String ndpiName ="G01P1E18.ndpi";
+    	String basePath ="/home/rfernandez/Bureau"; //Main directory with all NDPI
+    	String ndpiName ="G1P3E10.ndpi";
     	String fullNdpiPath = new File(basePath,ndpiName).getAbsolutePath(); 
     	
     	NDPI myndpi = PluginOpenPreview.runHeadlessAndGetNDPI(fullNdpiPath);
