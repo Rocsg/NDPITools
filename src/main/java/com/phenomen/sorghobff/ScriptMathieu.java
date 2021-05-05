@@ -7,14 +7,18 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 
+import java.util.*;
+import java.util.LinkedList;
+
 public class ScriptMathieu {
 
     public static void main(String[] args) {
         // TODO Auto-generated method stub
-        ImageJ im = new ImageJ();
+        //ImageJ im = new ImageJ();
 
         //faireTest0();
-        interexpertTest();
+        //interexpertTest();
+        listImgToProcess();
 
     }
 
@@ -58,6 +62,44 @@ public class ScriptMathieu {
         //result2.show();
 
         VitimageUtils.waitFor(5000);
-
     }
-}
+    
+    
+    public static void listImgToProcess() {
+    	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
+    	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
+    	String [][]finalSheet = {{"Location","Side"}};
+    	
+    	
+    	ArrayList<String> finalSheet = new ArrayList<String>(1);
+    	
+    	ArrayList[][] table = new ArrayList[1][1];
+    	
+    	
+    	
+    	
+    	table[0][0] = new ArrayList(finalSheet); // add another ArrayList object to [0,0]
+    	table[0][0].add(); // add object to that ArrayList
+    	
+    	
+    	
+    	//LinkedList<String> finalSheet = new LinkedList<String>();
+    	//String [][]finalSheet = {{"Location","Side"}};
+    	//String imgPath = sheet[][];
+    	//System.out.println(baseSheet[2][4]);
+    	//System.out.println(finalSheet[0][0]);
+    	
+    	
+    	//String [][]finalSheet = finalSheet.push({sheet[2][4],sheet[2][5]});
+    	//finalSheet.push({sheet[2][4],sheet[2][5]});
+    	
+    	//if(baseSheet[2][11].equals("")) {
+    		//String[] intermediarySheet = {baseSheet[2][4],baseSheet[2][6]};
+			//System.out.println(intermediarySheet[0]);
+			//finalSheet.add(intermediarySheet);
+			
+			
+		}
+    }
+    }
+
