@@ -107,6 +107,7 @@ public class SegmentationUtils {
 //			ImagePlus deb2=VitimageUtils.compositeRGBByte(imgSourceGreys[0], imgSourceGreys[1], imgSourceGreys[2],1,1,1);
 			return VitimageUtils.compositeRGBByte(ret[0], ret[1], ret[2],1,1,1);				
 		}
+		
 		else if(mode0VBOnly_1Enhance_2GreysOther_3greenout==3) {
 			ImagePlus[]ret=new ImagePlus[3];
 			ImagePlus imgSourceRGBGrey=imgSourceRGB.duplicate();
@@ -175,7 +176,7 @@ public class SegmentationUtils {
 		ImagePlus imgMaskGreys=VitimageUtils.invertBinaryMask(mRefOrVal);
 		imgMaskGreys=getBinaryMaskUnary(imgMaskGreys, 0.5);
 		
-		
+		//la
 		for(int can=0;can<3;can++) {
 			imgSourceBoth[can]=VitimageUtils.makeOperationBetweenTwoImages(imgSourceBoth[can], imgMaskRefAndVal, 2, false);
 			imgSourceBoth[can]=VitimageUtils.makeOperationOnOneImage(imgSourceBoth[can], 2, 1.4, true);
