@@ -152,7 +152,7 @@
                  <dependency>
                     <groupId>fr.cirad.image</groupId>
                     <artifactId>HyperWeka</artifactId>
-                    <version>4.0.0</version>
+                    <version>0.0.1</version>
                     <scope>system</scope>
                         <systemPath>${basedir}/lib/HyperWeka/HyperWeka-jar/0.0.1/HyperWeka-0.0.1.jar</systemPath>            
                 </dependency>

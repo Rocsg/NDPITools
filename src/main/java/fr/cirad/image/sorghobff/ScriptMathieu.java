@@ -68,7 +68,33 @@ public class ScriptMathieu {
     public static void listImgToProcess() {
     	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
     	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
+    	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
+    	
     	//String [][]finalSheet = {{"Location","Side"}};
+    	
+    	for(int i=0;i<baseSheet.length;i++) {
+    		System.out.println("Accepté ?"+baseSheet[i][11].equals(""));
+    		if(baseSheet[i][11].equals("")) {
+    			String[] intermediarySheet = {baseSheet[i][4],baseSheet[i][6]};
+    			finalSheet.add(intermediarySheet);
+    		
+    		}
+    	}
+    	String [][] finalTab = finalSheet.toArray(new String[finalSheet.size()][2]);
+    	System.out.println("La taille initiale était "+baseSheet.length+" et la taille finale est "+finalSheet.size());
+    	System.out.println(finalTab[3][1]);
+    	
+    	for(String[]s:finalSheet)System.out.println(s[0]+" "+s[1]);
+    	
+    	VitimageUtils.cropImage(null, 0, 0, 0, 0, 0, 0)
+    	
+    	
+    	
+    	/*
+    	//if(baseSheet[2][11].equals("")) {
+		String[] intermediarySheet = {baseSheet[2][4],baseSheet[2][6]};
+		System.out.println(intermediarySheet[0]);
+		finalSheet.add(intermediarySheet);
     	
     	
     	ArrayList<String> finalSheet = new ArrayList<String>(1);
@@ -81,7 +107,7 @@ public class ScriptMathieu {
     	table[0][0] = new ArrayList(finalSheet); // add another ArrayList object to [0,0]
     	table[0][0].add(null); // add object to that ArrayList
     	
-    	
+    	//bla
     	
     	//LinkedList<String> finalSheet = new LinkedList<String>();
     	//String [][]finalSheet = {{"Location","Side"}};
@@ -97,7 +123,7 @@ public class ScriptMathieu {
     		//String[] intermediarySheet = {baseSheet[2][4],baseSheet[2][6]};
 			//System.out.println(intermediarySheet[0]);
 			//finalSheet.add(intermediarySheet);
-			
+			*/
 			
 	}
 }
