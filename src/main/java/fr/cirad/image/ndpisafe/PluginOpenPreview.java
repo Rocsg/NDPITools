@@ -1,4 +1,5 @@
 package fr.cirad.image.ndpisafe;
+import ij.ImagePlus;
 import ij.io.OpenDialog;
 import ij.plugin.frame.PlugInFrame;
 
@@ -12,4 +13,17 @@ public class PluginOpenPreview extends PlugInFrame{
 		NDPI myndpi=new NDPI(od.getPath());
 		myndpi.previewImage.show();		
 	}	
+
+	public ImagePlus runHeadlessAndGetImagePlus(String path) {
+		System.out.println("Opening NDPI in "+path);
+		NDPI myndpi=new NDPI(path);
+		return myndpi.previewImage;	
+	}	
+
+	public NDPI runHeadlessAndGetNDPI(String path) {
+		System.out.println("Opening NDPI in "+path);
+		NDPI myndpi=new NDPI(path);
+		return myndpi;	
+	}	
+
 }
