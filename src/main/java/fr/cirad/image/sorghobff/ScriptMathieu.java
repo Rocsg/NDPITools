@@ -2,13 +2,14 @@ package fr.cirad.image.sorghobff;
 
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.mlutils.SegmentationUtils;
-
+import fr.cirad.image.ndpisafe.NDPI;
+import fr.cirad.image.ndpisafe.PluginOpenPreview;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 
+import java.io.File;
 import java.util.*;
-import java.util.LinkedList;
 
 public class ScriptMathieu {
 
@@ -86,7 +87,14 @@ public class ScriptMathieu {
     	
     	for(String[]s:finalSheet)System.out.println(s[0]+" "+s[1]);
     	
-    	VitimageUtils.cropImage(null, 0, 0, 0, 0, 0, 0)
+    	
+    	String basePath ="D:/DONNEES/Test"; //Main directory with all NDPI
+    	String ndpiName ="G01P1E18.ndpi";
+    	String fullNdpiPath = new File(basePath,ndpiName).getAbsolutePath(); 
+    	
+    	NDPI myndpi = PluginOpenPreview.runHeadlessAndGetNDPI(fullNdpiPath);
+    	System.out.println("TATA");
+    	myndpi.previewImage.show();
     	
     	
     	

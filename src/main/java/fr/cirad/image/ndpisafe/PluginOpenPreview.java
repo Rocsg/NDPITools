@@ -14,13 +14,13 @@ public class PluginOpenPreview extends PlugInFrame{
 		myndpi.previewImage.show();		
 	}	
 
-	public ImagePlus runHeadlessAndGetImagePlus(String path) {
+	public static ImagePlus runHeadlessAndGetImagePlus(String path) {
 		System.out.println("Opening NDPI in "+path);
 		NDPI myndpi=new NDPI(path);
 		return myndpi.previewImage;	
 	}	
 
-	public NDPI runHeadlessAndGetNDPI(String path) {
+	public static NDPI runHeadlessAndGetNDPI(String path) {
 		System.out.println("Opening NDPI in "+path);
 		NDPI myndpi=new NDPI(path);
 		return myndpi;	
