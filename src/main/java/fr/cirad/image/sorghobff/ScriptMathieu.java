@@ -1,7 +1,7 @@
-package com.phenomen.sorghobff;
+package fr.cirad.image.sorghobff;
 
-import com.phenomen.common.VitimageUtils;
-import com.phenomen.mlutils.SegmentationUtils;
+import fr.cirad.image.common.VitimageUtils;
+import fr.cirad.image.mlutils.SegmentationUtils;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -79,7 +79,7 @@ public class ScriptMathieu {
     	
     	
     	table[0][0] = new ArrayList(finalSheet); // add another ArrayList object to [0,0]
-    	table[0][0].add(); // add object to that ArrayList
+    	table[0][0].add(null); // add object to that ArrayList
     	
     	
     	
@@ -99,7 +99,6 @@ public class ScriptMathieu {
 			//finalSheet.add(intermediarySheet);
 			
 			
-		}
-    }
-    }
+	}
+}
 
