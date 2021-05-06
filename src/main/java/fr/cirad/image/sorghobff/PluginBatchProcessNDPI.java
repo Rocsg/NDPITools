@@ -7,9 +7,25 @@ import ij.ImageJ;
 import ij.ImagePlus;
 import ij.io.OpenDialog;
 import ij.plugin.frame.PlugInFrame;
+import loci.plugins.LociImporter;
 
 
-/** Plugin set in NDPI Safe tools > Batch process NDPI*/
+/** Plugin set in NDPI Safe tools > Batch process NDPI
+ * One should try to manage calling LociImporter() to set this right :
+ *         	String params="windowless=true " +
+        "open=/home/rfernandez/Bureau/G1P3E10.ndpi "+
+        "color_mode=Composite "+
+        "view=Hyperstack "+
+        "stack_order=XYCZT "+
+        "c_begin_2=1 c_end_2=3 c_step_2=1"+
+        "series=3";
+        	params="pouet";
+new LociImporter().run(params);
+ * 
+ * 
+ * 
+ * 
+ * */
 public class PluginBatchProcessNDPI extends PlugInFrame{
 	private static final long serialVersionUID = 1L;
 
