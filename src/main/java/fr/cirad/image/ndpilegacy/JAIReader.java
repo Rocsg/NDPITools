@@ -26,16 +26,32 @@ import ij.ImageStack;
 import ij.io.Opener;
 import ij.io.TiffDecoder;
 import ij.measure.Calibration;
+import ij.process.ByteProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
+
 import com.sun.media.jai.codec.*;
 import com.sun.media.jai.codecimpl.*;
+import com.sun.media.jai.codecimpl.util.DataBufferDouble;
+import com.sun.media.jai.codecimpl.util.DataBufferFloat;
 import com.sun.media.jai.codecimpl.util.FloatDoubleColorModel;
 
 import java.awt.image.RenderedImage;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
+import java.awt.image.DataBufferShort;
+import java.awt.image.DataBufferUShort;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+
+import javax.imageio.ImageIO;
+import javax.imageio.stream.ImageOutputStream;
 
 /**
  * Reads image files using JAI image I/O codec
@@ -206,6 +222,75 @@ public class JAIReader {
         }
     }
 
+    public static ImageProcessor createProcessor(int w, int h, DataBuffer buffer,
+            ColorModel cm) throws Exception {
+         
+         if (buffer.getOffset() != 0) {
+            throw new Exception("Expecting BufferData with no offset.");
+         }
+         switch (buffer.getDataType()) {
+            case DataBuffer.TYPE_BYTE:
+               return new ByteProcessor(w, h, ((DataBufferByte) buffer).getData(), cm);
+            case DataBuffer.TYPE_USHORT:
+               return new ShortProcessor(w, h, ((DataBufferUShort) buffer).getData(),
+                     cm);
+            case DataBuffer.TYPE_SHORT:
+               short[] pixels = ((DataBufferShort) buffer).getData();
+               for (int i = 0; i < pixels.length; ++i) {
+                  pixels[i] = (short) (pixels[i] + 32768);
+               }
+               return new ShortProcessor(w, h, pixels, cm);
+            case DataBuffer.TYPE_INT:
+               return new FloatProcessor(w, h, ((DataBufferInt) buffer).getData());
+            case DataBuffer.TYPE_FLOAT: {
+               DataBufferFloat dbFloat = (DataBufferFloat) buffer;
+               return new FloatProcessor(w, h, dbFloat.getData(), cm);
+            }
+            case DataBuffer.TYPE_DOUBLE:
+               return new FloatProcessor(w, h, ((DataBufferDouble) buffer).getData());
+            case DataBuffer.TYPE_UNDEFINED:
+               throw new Exception("Pixel type is undefined.");
+            default:
+               throw new Exception("Unrecognized DataBuffer data type");
+         }
+      }
+      
+    
+    
+    public static ImagePlus makeStackFromRenderedImage(String name, RenderedImage[] rImage) {
+        Object pixels = null;
+        ImagePlus imp = null;
+        if (name == null) {
+           name = "None";
+        }
+       ImageStack stack =         new ImageStack(rImage[0].getWidth(), rImage[0].getHeight());
+       for (int i = 0; i < (rImage.length); i++) {
+          DataBuffer dBuff = rImage[i].getData().getDataBuffer();
+          ColorModel cm = rImage[i].getColorModel();
+          try {
+             ImageProcessor ip =
+                   createProcessor(rImage[i].getWidth(), rImage[i].getHeight(),
+                   dBuff, cm);
+             stack.addSlice(String.valueOf(i - 1), ip);
+          } catch (Exception ex) {
+             ex.printStackTrace();
+          }
+          //stack.addSlice();
+       }
+       if (stack == null) {
+          return null;
+       }
+       if (stack.getSize() == 0) {
+          return null;
+       }
+       imp = new ImagePlus(name, stack);
+        return imp;
+     }
+     
+
+    
+    
+    
     /**
      * @param pageNb index of image to read in the file
      * @return image
@@ -224,7 +309,8 @@ public class JAIReader {
             }
             throw new Exception(msg);
         }
-
+        //if(true)return makeStackFromRenderedImage(file.getName() + " [" + (pageNb + 1) + "/" + getNumPages() + "]", new RenderedImage[] {ri});
+        //ImageIO.write(ri, ".jpg", new File("/home/rfernandez/Bureau/temp.jpg"));
         WritableRaster wr = ImagePlusCreator.forceTileUpdate(ri);
 
         ImagePlus im = ImagePlusCreator.create(wr, ri.getColorModel());

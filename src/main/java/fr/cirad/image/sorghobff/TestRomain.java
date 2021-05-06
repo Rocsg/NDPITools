@@ -29,13 +29,17 @@ import ij.plugin.ImageCalculator;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
+import loci.formats.in.NDPIReader;
+import loci.plugins.LociImporter;
+
 import trainableSegmentation.*;
 import hr.irb.fastRandomForest.FastRandomForest;
 import fiji.features.Frangi_;
 import fr.cirad.image.mlutils.SegmentationUtils;
 
 public class TestRomain extends PlugInFrame{
-		
+	
+
 		private static final long serialVersionUID = 1L;
 		public static String vesselsDir="/media/fernandr/TOSHIBA EXT/Temp";
 		public static int NUM_TREES=200;
@@ -82,10 +86,27 @@ public class TestRomain extends PlugInFrame{
         //Methode de selection 
         //Nombres d exemples utilises
         
+        public void start() {
+        	String params="windowless=true " +
+        "open=/home/rfernandez/Bureau/G1P3E10.ndpi "+
+        "color_mode=Composite "+
+        "view=Hyperstack "+
+        "stack_order=XYCZT "+
+        "c_begin_2=1 c_end_2=3 c_step_2=1"+
+        "series=3";
+        	params="pouet";
+        new LociImporter().run(params);
+        	//IJ.run("Bio-Formats", "open=/home/rfernandez/Bureau/G1P3E10.ndpi autoscale color_mode=Composite rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT series_2 c_begin_2=1 c_end_2=3 c_step_2=1");
+        	//ImagePlus img=IJ.getImage();
+        	//IJ.run(img, "RGB Color", "");
+//        	img.close();
+        }
         
         
-        public void start (){
-    	   IJ.log("Starting training !");
+        public void start2 (){
+    	  NDPIReader read=new NDPIReader();
+    	  
+        	IJ.log("Starting training !");
     	  /**Timing @16 cores
     	   * 512 : 2s per FT, 1200s per Mexemples  , 2.4 s de classification
     	   */

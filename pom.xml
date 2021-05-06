@@ -87,12 +87,32 @@
 			    <artifactId>MorphoLibJ_</artifactId>
 			    <version>1.4.2.1</version>
 			</dependency>
+   <!-- https://mvnrepository.com/artifact/loci/bio-formats -->
+<dependency>
+    <groupId>loci</groupId>
+    <artifactId>bio-formats</artifactId>
+    <version>4.5-imagej-2.0.0-beta6</version>
+</dependency>
+   <!-- https://mvnrepository.com/artifact/loci/loci_plugins -->
+<dependency>
+    <groupId>loci</groupId>
+    <artifactId>loci_plugins</artifactId>
+    <version>4.5-imagej-2.0.0-beta6</version>
+</dependency>
    
 		   <dependency>
 		      <groupId>com.opencsv</groupId>
 		      <artifactId>opencsv</artifactId>
 		      <version>5.4</version>
 		  </dependency>
+          
+          <!-- https://mvnrepository.com/artifact/com.github.livesense/org.liveSense.fragment.com.sun.image.codec.jpeg -->
+		<dependency>
+		    <groupId>com.github.livesense</groupId>
+		    <artifactId>org.liveSense.fragment.com.sun.image.codec.jpeg</artifactId>
+		    <version>1.0.3</version>
+		</dependency>
+          
           
             <dependency>
                     <groupId>org.json</groupId>
