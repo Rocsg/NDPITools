@@ -4,6 +4,7 @@ import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.mlutils.SegmentationUtils;
 import fr.cirad.image.ndpisafe.NDPI;
 import fr.cirad.image.ndpisafe.PluginOpenPreview;
+import fr.cirad.image.ndpisafe.PluginRectangleExtract;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -67,6 +68,15 @@ public class ScriptMathieu {
     
     
     public static void listImgToProcess() {
+    	
+    	new ImageJ();
+    	//ImagePlus img = PluginOpenPreview.runHeadlessAndGetImagePlus("D:/DONNEES/Test/G01P1E18.ndpi");
+    	//img.show();
+    	
+    	ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus("D:/DONNEES/Test/G01P1E18.ndpi");
+    	ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 3, 0, 0, 500, 500);
+    	img.show();
+    	
     /*	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
     	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
     	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
@@ -86,16 +96,16 @@ public class ScriptMathieu {
     	System.out.println(finalTab[3][1]);
     	
     	for(String[]s:finalSheet)System.out.println(s[0]+" "+s[1]);
-    	*/
     	
-    	String basePath ="/home/rfernandez/Bureau"; //Main directory with all NDPI
-    	String ndpiName ="G1P3E10.ndpi";
+    	
+    	String basePath ="D:/DONNEES/Test"; //Main directory with all NDPI
+    	String ndpiName ="G01P1E18.ndpi";
     	String fullNdpiPath = new File(basePath,ndpiName).getAbsolutePath(); 
     	
     	NDPI myndpi = PluginOpenPreview.runHeadlessAndGetNDPI(fullNdpiPath);
     	System.out.println("TATA");
     	myndpi.previewImage.show();
-    	
+    	/*
     	
     	
     	/*
