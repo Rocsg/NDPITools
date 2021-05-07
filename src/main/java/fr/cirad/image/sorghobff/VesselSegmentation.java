@@ -1,15 +1,21 @@
 package fr.cirad.image.sorghobff;
 
 import java.io.File;
-import fr.cirad.image.common.VitimageUtils;
 
+import fr.cirad.image.common.Timer;
+import fr.cirad.image.common.VitimageUtils;
+import fr.cirad.image.hyperweka.HyperWeka;
+import fr.cirad.image.hyperweka.HyperWekaSegmentation;
 import fr.cirad.image.mlutils.SegmentationUtils;
+import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.plugin.Duplicator;
 import ij.plugin.frame.PlugInFrame;
+import trainableSegmentation.FeatureStackArray;
+import trainableSegmentation.WekaSegmentation;
 
 public class VesselSegmentation extends PlugInFrame{
 		
@@ -18,7 +24,8 @@ public class VesselSegmentation extends PlugInFrame{
 	 	 * 1) prepare data from json and source images to ML-ready data into valid and train sets
 	 	 * 
 	 	 */
- 
+		private static final double ratioStdBrightness=0.2;
+		private static final double ratioStdColor=0.15;		
 	    private static final int targetResolutionVessel=512;
 	    private static final int resizeFactorVessel=8;
 		private static final long serialVersionUID = 1L;
@@ -33,19 +40,31 @@ public class VesselSegmentation extends PlugInFrame{
 	    public static boolean CLEAN_REF=false;
 	    public static int NSTEPS=4;
 	    public static int blabla=0; 
-
+	    Timer t;
+	    
 	public void start (){
-		   int startStep=3;
-		   int lastStep=3;
-    	   IJ.log("Starting"); 
-           if(startStep<=0 && lastStep>=0)step_00_splitTrainValidTest();
-           if(startStep<=1 && lastStep>=1)step_01_augment_train_data();
-           if(startStep<=2 && lastStep>=2)step_02_train_model(true);
-           if(startStep<=3 && lastStep>=3)step_03_apply_model("test",true);
-           if(startStep<=4 && lastStep>=4)step_04_measure_scores("test",true);
-           if(startStep<=5 && lastStep>=5)step_05_display_results("test",true);
-   		   IJ.log("End.");
-        }        
+	   t=new Timer();
+	   int startStep=4;
+	   int lastStep=4;
+	   IJ.log("Starting"); 
+	   t.print("Starting step 0");
+	   if(startStep<=0 && lastStep>=0)step_00_splitTrainValidTest();
+	   t.print("Starting step 1");
+       if(startStep<=1 && lastStep>=1)step_01_augment_train_data();
+	   t.print("Starting step 2");
+       if(startStep<=2 && lastStep>=2)step_02_train_model(true);
+	   t.print("Starting step 3");
+//      if(startStep<=3 && lastStep>=3)step_03_apply_model("test",true);
+//       if(startStep<=3 && lastStep>=3)step_03_apply_model("validate",true);
+       if(startStep<=3 && lastStep>=3)step_03_apply_model("training",true);
+	   t.print("Starting step 4");
+
+	   if(startStep<=4 && lastStep>=4)step_04_measure_scores("validate",true);
+	   t.print("Starting step 5");
+       if(startStep<=5 && lastStep>=5)step_05_display_results("test",true);
+	   IJ.log("End test.");
+	   System.out.println("End test.");
+	}        
 
 		
 		
@@ -95,43 +114,35 @@ public class VesselSegmentation extends PlugInFrame{
 	        ImagePlus source=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_source.tif");
 	        ImagePlus mask=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_annotations.tif");			
 
-        	for(int i=0;i<NSTEPS;i++) {
+        	for(int i=0;i<6;i++) {
             	System.out.println("Processing augmentation "+i+"/"+NSTEPS);
 	        	ImagePlus sourceOut=source.duplicate();
 	        	ImagePlus maskOut=mask.duplicate();
-        		sourceOut=SegmentationUtils.brightnessAugmentationStack(sourceOut,false,2,0.3,i==0);
-        		sourceOut=SegmentationUtils.colorAugmentationStack(sourceOut,false,2,0.3,i==0);
-        		sourceOut=SegmentationUtils.rotationAugmentationStack(sourceOut,0.5,1);
-        		IJ.saveAsTiff(sourceOut, vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_source"+("_AUGSET"+i)+".tif");
+
+	        	sourceOut=SegmentationUtils.brightnessAugmentationStack(sourceOut,false,2,ratioStdBrightness,true);
+        		sourceOut=SegmentationUtils.colorAugmentationStack(sourceOut,false,2,ratioStdColor,true);
+        		maskOut=SegmentationUtils.brightnessAugmentationStack(maskOut,true,2,ratioStdBrightness,true);
+        		maskOut=SegmentationUtils.colorAugmentationStack(maskOut,true,2,ratioStdBrightness,true);
+
+        		ImagePlus[]tab=SegmentationUtils.rotationAugmentationStack(sourceOut,maskOut,0.5,1,i);
+        		IJ.saveAsTiff(tab[0], vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_source"+("_AUGSET"+i)+".tif");
+        		IJ.saveAsTiff(tab[1], vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_annotations"+("_AUGSET"+i)+".tif"); 		        
 	            sourceOut=null;
-        		Runtime. getRuntime(). gc();
-       		
-        		maskOut=SegmentationUtils.brightnessAugmentationStack(maskOut,true,2,0.3,i==0);
-        		maskOut=SegmentationUtils.colorAugmentationStack(maskOut,true,2,0.3,i==0);
-        		maskOut=SegmentationUtils.rotationAugmentationStack(maskOut,0.5,1);
-        		IJ.saveAsTiff(maskOut, vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_annotations"+("_AUGSET"+i)+".tif"); 		        
 	            maskOut=null;
         		Runtime.getRuntime().gc();
         	}
     	}
         		
         public static void step_02_train_model(boolean multiModel) {
-            for(int i=0;i<(multiModel ?4:1);i++) {
+            for(int i=0;i<(multiModel ?6:1);i++) {
 	            Runtime. getRuntime(). gc();
 	            ImagePlus []imgs=new ImagePlus[] {
 	        	        IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_source"+("_AUGSET"+i)+".tif"),
 	        	        IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Stack_annotations"+("_AUGSET"+i)+".tif"),
 	            };
-	            SegmentationUtils.hyperWekaTrainModel(imgs[0],imgs[1],SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/LOW_model_layer_1"+("_AUGSET"+i));
-	            //ImagePlus temp=new Duplicator().run(firstProbaMaps,2,2,1,firstProbaMaps.getNSlices(),1,1);
-	            //temp.show();
-	            //IJ.saveAsTiff(temp,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Result_proba_layer_1_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+("STEP"+i)+".tif");
-	
-	            /*ImagePlus secondProbaMaps=wekaTest(temp,imgs[1],NUM_TREES,NUM_FEATS,SEED,MIN_SIGMA,MAX_SIGMA,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/layer_2_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain));
-	            temp=new Duplicator().run(secondProbaMaps,2,2,1,secondProbaMaps.getNSlices(),1,1);
-	            temp.show();
-	            IJ.saveAsTiff(temp,vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/Result_proba_layer_2_"+targetResolution+"_pix"+extension(useRotAug, useContAug)+(scenarioAug==0 ? "" : "SCENAUG"+scenarioAug)+(scenarioTrain==0 ? "" : "SCENTRAIN"+scenarioTrain)+".tif");                
-	*/
+	            if(i<3)imgs[0]=VitimageUtils.splitRGBStackHeadLess(imgs[0])[(i)];
+	            else        imgs[0]=VitimageUtils.getHSB(imgs[0])[(i-3)];
+	            SegmentationUtils.wekaTrainModel(imgs[0],imgs[1],SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/model_layer_1"+("_AUGSET"+i));
             }	
         }
        		
@@ -140,17 +151,22 @@ public class VesselSegmentation extends PlugInFrame{
         		System.out.println("Wrong data set type :"+dataType);
         		System.exit(0);
         	}
-        	ImagePlus img=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_source.tif");
-        	ImagePlus[] resultTab=new ImagePlus[(multiModel ? NSTEPS : 1 )];
-        	for(int n=0;n<(multiModel ? NSTEPS : 1 );n++) {
-    			IJ.log("Running step "+n);
-        		resultTab[n]=SegmentationUtils.wekaApplyModel/*SlicePerSlice*/(img,SegmentationUtils.getStandardRandomForestParams(n),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/model_layer_1"+("_AUGSET"+n+""));
-        		resultTab[n]=new Duplicator().run(resultTab[n],2,2,1,resultTab[n].getNSlices(),1,1);
-                IJ.saveAsTiff(resultTab[n],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+"STEP"+n+".tif");
+        	ImagePlus[] resultTab=new ImagePlus[(multiModel ? 6 : 1 )];
+        	for(int i=0;i<(multiModel ? 6 : 1 );i++) {
+            	ImagePlus img=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_source.tif");
+            	if(i<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(i)];
+	            else        img=VitimageUtils.getHSB(img)[(i-3)];
+	            IJ.log("Apply model aug "+i);
+        		resultTab[i]=SegmentationUtils.wekaApplyModel(img,SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/model_layer_1"+("_AUGSET"+i+""));
+        		resultTab[i]=new Duplicator().run(resultTab[i],2,2,1,resultTab[i].getNSlices(),1,1);
+                IJ.saveAsTiff(resultTab[i],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+"STEP"+i+".tif");
+                
         	}
     		ImagePlus result=VitimageUtils.meanOfImageArray(resultTab);
             IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
         }
+        
+        
  	
 		public static void step_04_measure_scores(String dataType,boolean multiModel) {
 			boolean verbose=false;
@@ -159,15 +175,27 @@ public class VesselSegmentation extends PlugInFrame{
         		System.exit(0);
         	}
         	System.out.println(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba.tif");
-            ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
-            VitimageUtils.printImageResume(binaryValT);
-            for(double d1=0.3;d1<0.9;d1+=0.1){
-            	System.out.println("\n "+d1+"  -  "+d1);
-            	binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,d1,d1);
+			 ImagePlus []res=new ImagePlus[100];
+			 int incr=0;
+            for(double d1=0.5;d1<=0.5;d1+=0.05){
+                for(double d2=0.7;d2<=0.7;d2+=0.1){
+            	System.out.println("\n "+d1+"  -  "+d2);
+                ImagePlus binValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_STEP0")+".tif");
+            	ImagePlus binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binValT,d1,d2);
+            	System.out.println("a");
+            	//            	binaryValT.show();
+ //           	VitimageUtils.waitFor(1000000);
             	SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+            	System.out.println("b");
+    			ImagePlus img=VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT);
+    			img.setTitle(d1+" , "+d2);
+    			res[incr++]=img;
+                }
             }
-			VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT).show();
+            for(int i=0;i<incr;i++) {
+            	res[i].show();
+            }
 		}
 
 		public static void step_05_display_results(String dataType,boolean multiModel) {
@@ -207,5 +235,95 @@ public class VesselSegmentation extends PlugInFrame{
         IJ.saveAsTiff(resultTab,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_layer2"+(useRotAugValidate ? "_old" : "")+".tif");        	
     }
 */            
- 
+        public static void testMono(String dataType) {
+       	   ImagePlus[]img=new ImagePlus[6];
+       	   for(int i=0;i<6;i++) {
+       		   img[i]=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+"STEP"+i+".tif");
+       	   }
+       	   ImagePlus in=VitimageUtils.compositeRGBByte(img[1], img[2], img[5], 1,1, 1);
+       	  ImagePlus mask=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
+            int[]classifierParams=	SegmentationUtils.getStandardRandomForestParams(0);
+             boolean[]enableFeatures=	SegmentationUtils.getShortRandomForestFeatures();
+       	   int numFeatures=classifierParams[1];
+       	   int numTrees=classifierParams[0];
+      	   int seed=classifierParams[2];
+      	   int minSigma=classifierParams[3];
+      	   int maxSigma=classifierParams[4];
+      	   Runtime. getRuntime(). gc();
+              long startTime = System.currentTimeMillis();
+              WekaSegmentation seg = new WekaSegmentation(in);
+              // Classifier
+              FastRandomForest rf = new FastRandomForest();
+              rf.setNumTrees(numTrees);                  
+              rf.setNumFeatures(numFeatures);  
+              rf.setSeed( seed );    
+              seg.setClassifier(rf);    
+              // Parameters  
+              seg.setMembranePatchSize(11);  
+              seg.setMinimumSigma(minSigma);
+              seg.setMaximumSigma(maxSigma);
+        
+          
+              // Enable features in the segmentator
+              seg.setEnabledFeatures( enableFeatures );
+
+              seg.addRandomBalancedBinaryData(in, mask, "class 2", "class 1", 10000);
+              seg.saveFeatureStack(1, "/home/rfernandez/Bureau/test.tif","test.tif");
+              System.out.println("Here 1");
+              seg.trainClassifier();
+              System.out.println("Here 2");
+              seg.applyClassifier( in, 0, true).show();
+              System.out.println("Here 4");
+              // Add labeled samples in a balanced and random way
+        //  	seg.saveFeatureStack(1, "/home/rfernandez/Bureau/tempdata/fsa",new File(modelName).getName());
+              
+      		Runtime.getRuntime().gc();
+
+          }
+   	
+  	       public static void testMono2(String dataType) {
+      	   ImagePlus[]img=new ImagePlus[6];
+      	   for(int i=0;i<6;i++) {
+      		   img[i]=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+"STEP"+i+".tif");
+      	   }
+      	  ImagePlus mask=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
+           int[]classifierParams=	SegmentationUtils.getStandardRandomForestParams(0);
+            boolean[]features=	SegmentationUtils.getShortRandomForestFeatures();
+      	   int numFeatures=classifierParams[1];
+      	   int numTrees=classifierParams[0];
+     	   int seed=classifierParams[2];
+     	   int minSigma=classifierParams[3];
+     	   int maxSigma=classifierParams[4];
+     	   Runtime. getRuntime(). gc();
+             long startTime = System.currentTimeMillis();
+             HyperWeka wekaSave=new HyperWeka();
+             HyperWekaSegmentation seg = new HyperWekaSegmentation(img[0],wekaSave);
+             seg.setMinimumSigma(1);
+             seg.setMaximumSigma(8);
+             seg.setFeatureStackArray(HyperWeka.buildFeatureStackArrayRGBSeparatedMultiThreadedV2(img,features,minSigma,maxSigma));
+             seg.saveFeatureStack(1, "/home/rfernandez/Bureau/test.tif");
+             // Classifier
+             FastRandomForest rf = new FastRandomForest();
+             rf.setNumTrees(numTrees);                  
+             rf.setNumFeatures(3);  
+             rf.setSeed( seed );    
+             seg.setClassifier(rf);    
+             // Parameters  
+             seg.setMembranePatchSize(11);  
+             seg.addRandomBalancedBinaryData(img[0], mask, "class 2", "class 1", 1000);
+             seg.wekasave.tabHyperFeatures[0]=false;
+             System.out.println("Here 1");
+             seg.trainClassifier();
+             System.out.println("Here 2");
+ 			seg.setUpdateFeatures(false);
+ 			seg.applyClassifier(false);//False means no probability maps
+ 			seg.getClassifiedImage().show();
+             System.out.println("Here 4");
+             // Add labeled samples in a balanced and random way
+       //  	seg.saveFeatureStack(1, "/home/rfernandez/Bureau/tempdata/fsa",new File(modelName).getName());
+             
+     		Runtime.getRuntime().gc();
+
+         }
+
 }

@@ -13,6 +13,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.opencsv.CSVReader;
+
+import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.VitiDialogs;
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.hyperweka.HyperWekaSegmentation;
@@ -29,6 +31,7 @@ import ij.plugin.Duplicator;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
+import trainableSegmentation.FeatureStackArray;
 import trainableSegmentation.WekaSegmentation;
 
 import fr.cirad.image.common.VitimageUtils;
@@ -202,7 +205,7 @@ public class SegmentationUtils {
 		return VitimageUtils.compositeRGBByte(ret[0], ret[1], ret[2],1,1,1);				
 	}
 
-	public static ImagePlus getSizeMap(ImagePlus img,int threshLow,int step,int nCat,boolean show) {
+	public static ImagePlus getSizeMap(ImagePlus img,int threshLow,int step,int nCat) {
 
 		ImagePlus imgRet=VitimageUtils.nullImage(img);
 		IJ.run(imgRet,"8-bit","");
@@ -221,7 +224,7 @@ public class SegmentationUtils {
 			}
 			imgRet.getStack().setProcessor(ip, z+1);
 		}
-		VitimageUtils.showWithParams(imgRet,img.getTitle()+"_size_map",1,0,nCat*step);
+		//VitimageUtils.showWithParams(imgRet,img.getTitle()+"_size_map",1,0,nCat*step);
 /*			imgRet.show();
 		imgRet.setDisplayRange(0, nCat*step);
 		imgRet.updateAndDraw();
@@ -229,7 +232,7 @@ public class SegmentationUtils {
 		IJ.run("Brightness/Contrast...");
 		selectWindow("B&C");
 		*/
-		if(!show)imgRet.hide();
+		//if(!show)imgRet.hide();
 		return imgRet;
 	}
            
@@ -268,7 +271,7 @@ public class SegmentationUtils {
         	else if(IOU(roiTabRef[i],roiTabTest[solutions[i]])<=0) ret[i]=new Object[] {new Integer(-1),new Double(0),new Double(surface)};
         	else ret[i]=new Object[] {solutions[i],IOU(roiTabRef[i],roiTabTest[solutions[i]]),new Double(surface)};
         }    		
-		t.print("Hungarian");
+//		t.print("Hungarian");
         return ret;
     }
 
@@ -317,67 +320,105 @@ public class SegmentationUtils {
 }
 
 	public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest) {
-		int nLost=0;
-		int nFound=0;
 		double accIOU=0;
-		int nInMore=0;
-		int nTotRef=0;
-		int nTotVal=0;
+		int nTotReal=0;
+		int nTotPred=0;
+		int totMatch=0;
+		int []totMatchClass=new int[20];
+		double []iouPerClass=new double[20];
 		int Z=segTest.getNSlices();
-		int[]nbFoundPerClass=new int[20];
-		int[]nbTotPerClass=new int[20];
-		for(int z=0;z<Z;z++) {
-			ImagePlus binaryRef=new Duplicator().run(segRef,1,1,z+1,z+1,1,1);
-			ImagePlus binaryVal=new Duplicator().run(segTest,1,1,z+1,z+1,1,1);
-            double iouGlob=SegmentationUtils.IOU(binaryRef,binaryVal);
-            Roi[]rRef=SegmentationUtils.segmentationToRoi(binaryRef);
-            Roi[]rVal=SegmentationUtils.segmentationToRoi(binaryVal);
-            if(rVal!=null) {
-				nTotRef+=rRef.length;
-				nTotVal+=rVal.length;
-				Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rRef,rVal);
+		int[]TP=new int[20];
+		int TPFull=0;
+		int FNFull=0;
+		int FPFull=0;
+		int[]FN=new int[20];
+		int[]FP=new int[20];
+		int[]nPred=new int[20];
+		int[]nReal=new int[20];
+		for(int z=1;z<2;z++) {
+			ImagePlus binaryReal=new Duplicator().run(segRef,1,1,z+1,z+1,1,1);
+			binaryReal.show();
+			ImagePlus binaryPred=new Duplicator().run(segTest,1,1,z+1,z+1,1,1);
+			binaryPred.show();
+            double iouGlob=SegmentationUtils.IOU(binaryReal,binaryPred);
+            Roi[]rReal=SegmentationUtils.segmentationToRoi(binaryReal);
+            Roi[]rPred=SegmentationUtils.segmentationToRoi(binaryPred);
+            for(int i=0;i<rReal.length;i++) {
+            	double surf=getRoiSurface(rReal[i]);
+				int index=(int)Math.floor(((Double)surf/20.0));
+				if(index>19)index=19;
+				nReal[index]++;
+            }
+            for(int i=0;i<rPred.length;i++) {
+            	double surf=getRoiSurface(rPred[i]);
+				int index=(int)Math.floor(((Double)surf/20.0));
+				if(index>19)index=19;
+				nPred[index]++;
+            }
+
+            if(rPred!=null) {
+            	System.out.println("Starting hungarian with "+rReal.length+" reals and "+rPred.length+" preds.");
+				nTotReal+=rReal.length;
+				nTotPred+=rPred.length;
+				Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rReal,rPred);
+				boolean []checkedPred=new boolean[rPred.length];
 				for(int i=0;i<tab.length;i++) {	
-	//				System.out.println("Matching ref "+i+" with test "+tab[i][0]+" , IOU = "+tab[i][1]+ " , SurfaceRef = "+tab[i][2]+(((Integer)tab[i][0]<0) ? "                                   is lost !" : "") );
+					System.out.println(tab[i][0]+" "+tab[i][1]+" "+tab[i][2]);
 					int index=(int)Math.floor(((Double)tab[i][2]/20.0));
 					if(index>19)index=19;
-					nbTotPerClass[index]++;
-					if((Integer)tab[i][0]<0) {nLost++;continue;}
-					nbFoundPerClass[index]++;
-					nFound++;
-					accIOU+=(Double)(tab[i][1]);
+					//nReal[index]++;
+					if((Integer)tab[i][0]<0) {System.out.println("Un out à index="+index);FN[index]++;FNFull++;}
+					else {
+						checkedPred[(Integer)tab[i][0]]=true;
+						int index2=(int)Math.floor(((Double)getRoiSurface(rPred[ (Integer)tab[i][0] ] )/20.0));
+						if(index2>19)index2=19;
+						nPred[index2]--;
+						nPred[index]++;
+						
+						
+						TP[index]++;
+						TPFull++;
+						accIOU+=(Double)(tab[i][1]);
+						iouPerClass[index]+=(Double)(tab[i][1]);
+						totMatch++;
+						totMatchClass[index]++;
+					}
+				}
+				for(int i=0;i<rPred.length;i++) {
+					if(!checkedPred[i]) {
+						int index2=(int)Math.floor(((Double)getRoiSurface(rPred[ i ] )/20.0));
+						if(index2>19)index2=19;
+						FP[index2]++;
+						
+					}
 				}
             }
-            else {
-            	
-            }
-			nInMore=nTotVal-nFound;
-			if(false) {
-				System.out.println("\nAfter z="+z);
-				System.out.println("nLost="+nLost);
-				System.out.println("nFound="+nFound);
-				System.out.println("nInMore="+nInMore);
-
-				System.out.println("nThisRef="+rRef.length);
-				System.out.println("nThisVal="+rVal.length);
-				System.out.println("nTotRef="+nTotRef);
-				System.out.println("nTotVal="+nTotVal);
-				System.out.println("accIOU="+(accIOU/nFound));
-			}
 		}
-		accIOU/=nFound;
-		double percent=VitimageUtils.dou(nFound*100.0/nTotRef);
-		double percentOut=VitimageUtils.dou(nInMore*100.0/nTotVal);
-		System.out.println("Summary : #VB found="+nFound+" ("+percent+" %) with mean IOU="+accIOU+" . #VB not found="+nLost+" . #False positives="+nInMore+" (="+percentOut+"%)");
+		accIOU/=totMatch;
+
+		//Compute False positive
+		FPFull=nTotPred-TPFull;
+		for(int i=0;i<20;i++) {
+			
+			System.out.println("Classe ["+(i*20)+" - "+((i+1)*20)+"]: nReal="+nReal[i]+" nPred="+nPred[i]+" nMatch="+totMatchClass[i]+" TP="+TP[i]+" FP="+FP[i]+" FN="+FN[i]);
+		}
+		System.out.println("Total real)"+nTotReal);
+		double globPrec=VitimageUtils.dou(TPFull*1.0/(nTotPred));
+		double globRec=VitimageUtils.dou(TPFull*1.0/(nTotReal));
+		System.out.println("Summary : Prec="+globPrec+" , Rec="+globRec+" , mean IOU="+accIOU+" . ");
 		for(int i=0;i<4;i++) {
 			System.out.println();
 			for(int j=0;j<5;j++) {
 				int indBase=i*5+j;
-				String percentInd=""+VitimageUtils.dou(nbFoundPerClass[indBase]*100.0/nbTotPerClass[indBase]);
-				if(nbTotPerClass[indBase]==0)percentInd="N/A";
-				System.out.print("Class["+(indBase*20)+" - "+((indBase+1)*20)+"]:"+percentInd+" , ");
+				String precision=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FP[i]));
+				String recall=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FN[i]));
+				String iou=""+(VitimageUtils.dou(iouPerClass[indBase]/TP[indBase]));
+				if(TP[indBase]==0) precision=recall=iou="N/A";
+				System.out.print("Class["+(indBase*20)+" - "+((indBase+1)*20)+"]:"+precision+" , "+recall+" , "+iou+" ");
 			}
 		}
-		SegmentationUtils.getSizeMap(segRef,0,20,5,true);
+		SegmentationUtils.getSizeMap(segRef,0,20,5).show();
+		VitimageUtils.waitFor(5000000);
 	}
 
 	public static ImagePlus getWatershed(ImagePlus in,ImagePlus marker,ImagePlus mask) {
@@ -388,10 +429,6 @@ public class SegmentationUtils {
 
 	public static ImagePlus getSegmentationFromProbaMap3D(ImagePlus probaMap,double thresh1,double thresh2) {
 		ImagePlus debug=probaMap.duplicate();
-		debug.setTitle("THIS ONE");
-		debug.show();
-		VitimageUtils.waitFor(5000);
-		debug.hide();
 		ImagePlus []tab=new ImagePlus[probaMap.getNSlices()];
 		for(int z=0;z<probaMap.getNSlices();z++) {
 			ImagePlus temp=new Duplicator().run(probaMap,1,1,z+1,z+1,1,1);
@@ -403,40 +440,40 @@ public class SegmentationUtils {
 	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap,double thresh1,double thresh2) {
 		//Lisser l'image de probabilité
 		ImagePlus probaGauss=probaMap.duplicate();
-		IJ.run(probaGauss,"8-bit","");
-		IJ.run(probaGauss, "Gaussian Blur...", "sigma=2 stack");
+		IJ.run(probaGauss, "Median...", "sigma=2 stack");
 
 		//Extraire les maxima
 		IJ.run(probaGauss, "Find Maxima...", "prominence="+thresh1+" output=[Single Points]");
-		VitimageUtils.waitFor(200);
+		VitimageUtils.waitFor(100);
 		ImagePlus tmp=IJ.getImage();
 		ImagePlus pts=tmp.duplicate();
+		tmp.changes=false;
 		tmp.close();
 		pts.setTitle("Points");
 		probaGauss.changes=false;
 		probaGauss.close();
-
 		
 		//Extraire le masque de la zone de proba interessante
 		ImagePlus probaGauss2=probaMap.duplicate();
-		IJ.run(probaGauss2, "Gaussian Blur...", "sigma=2 stack");
+		IJ.run(probaGauss2, "Median...", "sigma=2 stack");
 		ImagePlus mask=VitimageUtils.getBinaryMask(probaGauss2, thresh2);
-		
 
 		//Calculer le watershed et les résultats
 		ImagePlus result=getWatershed(probaGauss2, pts, mask);
 		pts.changes=false;
 		pts.close();
-		return cleanVesselSegmentation(result,512,2,5000);
-//		return 
-//		return result;
+		ImagePlus temp=result.duplicate();
+		temp= cleanVesselSegmentation(result,512,2,5000);
+		return temp;
 	}
 	
 
 	
     /** Weka train and apply model --------------------------------------------------------------------------------------------*/        
-    public static void wekaTrainModel(ImagePlus img,ImagePlus mask,int[]classifierParams,boolean[]enableFeatures,String modelName) {
-	   int numTrees=classifierParams[0];
+    public static void wekaTrainModel(ImagePlus imgTemp,ImagePlus maskTemp,int[]classifierParams,boolean[]enableFeatures,String modelName) {
+   	 ImagePlus img=new Duplicator().run(imgTemp,1,1,1,debugTrain ? 5 : imgTemp.getNSlices(),1,1);
+   	 ImagePlus mask=new Duplicator().run(maskTemp,1,1,1,debugTrain ? 5 : imgTemp.getNSlices(),1,1);
+   	 int numTrees=classifierParams[0];
 	   int numFeatures=classifierParams[1];
 	   int seed=classifierParams[2];
 	   int minSigma=classifierParams[3];
@@ -463,20 +500,23 @@ public class SegmentationUtils {
         seg.setEnabledFeatures( enableFeatures );
 
         // Add labeled samples in a balanced and random way
-
+  //  	seg.saveFeatureStack(1, "/home/rfernandez/Bureau/tempdata/fsa",new File(modelName).getName());
+        
         int[]nbPix=SegmentationUtils.nbPixelsInClasses(mask);
         int min=Math.min(nbPix[0],nbPix[255]);
         int targetExamplesPerSlice=N_EXAMPLES/(2*img.getNSlices());
         System.out.println("Starting training on "+targetExamplesPerSlice+" examples per slice");
         seg.addRandomBalancedBinaryData(img, mask, "class 2", "class 1", targetExamplesPerSlice);
         Runtime. getRuntime(). gc();
-        
+        //seg.saveFeatureStack(1,"/home/rfernandez/Bureau/tempdata","test");
+        //IJ.showMessage("Done!");
         // Train classifier
         seg.trainClassifier();
         seg.saveClassifier(modelName+".model");
         // Apply trained classifier to test image and get probabilities
-        //ImagePlus probabilityMaps = seg.applyClassifier( img, 0, true);
-        //probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+    //    ImagePlus probabilityMaps = seg.applyClassifier( img, 0, true);
+     //   probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
+     //   IJ.saveAsTiff(probabilityMaps, "/home/rfernandez/Bureau/tempdata/test.tif");
         // Print elapsed time
         long estimatedTime = System.currentTimeMillis() - startTime;
         IJ.log( "** Finished script in " + estimatedTime + " ms **" );
@@ -484,53 +524,42 @@ public class SegmentationUtils {
 		Runtime.getRuntime().gc();
     }
             
-    public static ImagePlus wekaApplyModel(ImagePlus img,int []classifierParams,boolean[]enableFeatures,String modelName) {
- 	   int numTrees=classifierParams[0];
- 	   int numFeatures=classifierParams[1];
- 	   int seed=classifierParams[2];
- 	   int minSigma=classifierParams[3];
- 	   int maxSigma=classifierParams[4];
-        long startTime = System.currentTimeMillis();
-        System.out.print("weka step 1   ");
-        WekaSegmentation seg = new WekaSegmentation(img);
-        System.out.print("weka step 2   ");
-
+    public static ImagePlus wekaApplyModel(ImagePlus imgTemp,int []classifierParams,boolean[]enableFeatures,String modelName) {
+    	ImagePlus img=new Duplicator().run(imgTemp,1,1,1,debugTrain ? 5 : imgTemp.getNSlices(),1,1);
+  	    IJ.log("weka set params  ");
+	    int numTrees=classifierParams[0];
+	    int numFeatures=classifierParams[1];
+	    int seed=classifierParams[2];
+	    int minSigma=classifierParams[3];
+	    int maxSigma=classifierParams[4];
+	    long startTime = System.currentTimeMillis();
+	    WekaSegmentation seg = new WekaSegmentation(imgTemp);
+        IJ.log("weka set features  ");
         // Classifier
         FastRandomForest rf = new FastRandomForest();
-        rf.setNumTrees(300);                  
-        rf.setNumFeatures(14);  
+        rf.setNumTrees(numTrees);                  
+        rf.setNumFeatures(numFeatures);  
         rf.setSeed( seed );    
-        System.out.print("weka step 3  ");
         seg.setClassifier(rf);    
+
         // Parameters  
-        System.out.print("weka step 4  ");
         seg.setMembranePatchSize(11);  
         seg.setMinimumSigma(minSigma);
         seg.setMaximumSigma(maxSigma);
-        System.out.print("weka step 5  ");
-  
-     
-        // Enable features in the segmentator
         seg.setEnabledFeatures( enableFeatures );
-        System.out.print("weka step 6  ");
 
-        // Add labeled samples in a balanced and random way
-        seg.updateWholeImageData();
-        System.out.print("weka step 65  ");
-        seg.loadClassifier(modelName+".model");
         VitimageUtils.garbageCollector();
-        System.out.print("weka step 7  ");
-        // Train classifier
+        IJ.log("weka load model  ");
+        seg.loadClassifier(modelName+".model");
 
         // Apply trained classifier to test image and get probabilities
-        ImagePlus probabilityMaps = seg.applyClassifier( img, 0, true);
-        System.out.print("weka step 9  ");
+        IJ.log("Computing maps ");        
+    	ImagePlus probabilityMaps=seg.applyClassifier(img,0,true);
         probabilityMaps.setTitle( "Probability maps of " + img.getTitle() );
-        // Print elapsed time
         long estimatedTime = System.currentTimeMillis() - startTime;
-        IJ.log( "** Finished script in " + estimatedTime + " ms **" );
+        IJ.log( "** Finished apply model in " + estimatedTime + " ms **" );
         seg=null;
-        Runtime.getRuntime().gc();
+        VitimageUtils.garbageCollector();
         return probabilityMaps;
 }
 
@@ -593,8 +622,8 @@ public class SegmentationUtils {
            
      public static void hyperWekaTrainModel(ImagePlus imgTemp,ImagePlus maskTemp,int[]classifierParams,boolean[]enableFeatures,String modelName) {
     	 
-    	 ImagePlus img=new Duplicator().run(imgTemp,1,1,1,debugTrain ? 10 : imgTemp.getNSlices(),1,1);
-    	 ImagePlus mask=new Duplicator().run(maskTemp,1,1,1,debugTrain ? 10 : imgTemp.getNSlices(),1,1);
+    	 ImagePlus img=new Duplicator().run(imgTemp,1,1,1,debugTrain ? 5 : imgTemp.getNSlices(),1,1);
+    	 ImagePlus mask=new Duplicator().run(maskTemp,1,1,1,debugTrain ? 5 : imgTemp.getNSlices(),1,1);
     	 int numTrees=classifierParams[0];
  	   int numFeatures=classifierParams[1];
  	   int seed=classifierParams[2];
@@ -628,7 +657,7 @@ public class SegmentationUtils {
          int targetExamplesPerSlice=N_EXAMPLES/(2*img.getNSlices());
          System.out.println("Starting training on "+targetExamplesPerSlice+" examples per slice");
          seg.addRandomBalancedBinaryData(img, mask, "class 2", "class 1", targetExamplesPerSlice);
- 
+         seg.saveFeatureStack(1, "/home/rfernandez/Bureau/tempdata/"+new Timer().hashCode());
          
          Runtime. getRuntime(). gc();
          
@@ -751,24 +780,30 @@ public class SegmentationUtils {
     
     
     /** Routines for data augmentation --------------------------------------------------------------------------------------------*/        
-	public static ImagePlus rotationAugmentationStack(ImagePlus imgIn,double probaRotation,int repetitions){
+	public static ImagePlus[] rotationAugmentationStack(ImagePlus imgIn,ImagePlus maskIn,double probaRotation,int repetitions,int seed){
 		int N=imgIn.getNSlices();
 		ImagePlus []tabSlicesOut=new ImagePlus[repetitions*N];
 		ImagePlus[]tab2=VitimageUtils.stackToSlices(imgIn);
+		ImagePlus []tabSlicesOutMask=new ImagePlus[repetitions*N];
+		ImagePlus[]tab2Mask=VitimageUtils.stackToSlices(maskIn);
 		for(int i=0;i<repetitions;i++) {
 			for(int j=0;j<N;j++) {
 				tabSlicesOut[(i)*N+j]=tab2[j].duplicate();
+				tabSlicesOutMask[(i)*N+j]=tab2Mask[j].duplicate();
 			}
 		}
 		
-		Random rand=new Random();
+		Random rand=new Random(seed);
 		for(int i=0;i<tabSlicesOut.length;i++) {
 			double p=rand.nextDouble();
 			tabSlicesOut[i].show();
 			if(p<probaRotation)IJ.run("Rotate 90 Degrees Right");
 			tabSlicesOut[i].hide();
+			tabSlicesOutMask[i].show();
+			if(p<probaRotation)IJ.run("Rotate 90 Degrees Right");
+			tabSlicesOutMask[i].hide();
 		}
-		return VitimageUtils.slicesToStack(tabSlicesOut);
+		return new ImagePlus[] {VitimageUtils.slicesToStack(tabSlicesOut),VitimageUtils.slicesToStack(tabSlicesOutMask)};
 	}
 		
 	public static ImagePlus colorAugmentationStack(ImagePlus imgIn,boolean isMask,int nMult,double std,boolean keepOriginal){
@@ -796,6 +831,7 @@ public class SegmentationUtils {
 			tabOut[iMult].show();
 			IJ.selectWindow("temp");
 			IJ.run("Split Channels");
+			tabOut[iMult].changes=false;
 			tabOut[iMult].close();
 			ImagePlus imgR=ij.WindowManager.getImage("temp (red)");
 			ImagePlus imgG=ij.WindowManager.getImage("temp (green)");
@@ -1118,7 +1154,9 @@ public class SegmentationUtils {
 			//Remplir les trous inutiles
 			ImagePlus imgSeg=VitimageUtils.getBinaryMask(seg, 0.5);
 			imgSeg.show();
-			IJ.run("Fill Holes", "stack");
+			//VitimageUtils.waitFor(3000);
+			//IJ.run("Fill Holes", "stack");
+			//VitimageUtils.waitFor(3000);
 			ImagePlus test1=imgSeg.duplicate();
 			imgSeg.hide();
 			//Retirer les cellules plus petites que et plus grandes que
@@ -1194,14 +1232,38 @@ public class SegmentationUtils {
 	
 
 	public static int NUM_TREES=200;
-    public static int NUM_FEATS=7;//sqrt (#feat)
-    public static int MIN_SIGMA=1;
-    public static int MAX_SIGMA=32;//32
-    public static int N_EXAMPLES=2000/*00*/;//1M
-    public static boolean debugTrain=true;
+    public static int NUM_FEATS=14;//sqrt (#feat)
+    public static int MIN_SIGMA=2;
+    public static int MAX_SIGMA=16;//32
+    public static int N_EXAMPLES=200000;//1M
+    public static boolean debugTrain=false;
     
     public static int[]getStandardRandomForestParams(int seed){
 	   return new int[] {NUM_TREES,NUM_FEATS,seed,MIN_SIGMA,MAX_SIGMA};
+    }
+    public static boolean[]getShortRandomForestFeatures(){
+     	return new boolean[]{
+        true,   /* Gaussian_blur */
+        true,   /* Sobel_filter */
+        false,   /* Hessian */
+        false,   /* Difference_of_gaussians */
+        false,   /* Membrane_projections */
+        true,  /* Variance */
+        false,  /* Mean */
+        true,  /* Minimum */
+        true,  /* Maximum */
+        true,  /* Median */
+        false,  /* Anisotropic_diffusion */
+        false,  /* Bilateral */
+        false,  /* Lipschitz */
+        false,  /* Kuwahara */
+        false,  /* Gabor */
+        true,  /* Derivatives */
+        true,  /* Laplacian */
+        false,  /* Structure */
+        false,  /* Entropy */
+        false   /* Neighbors */
+	};
     }
 
     public static boolean[]getStandardRandomForestFeatures(){
@@ -1211,11 +1273,11 @@ public class SegmentationUtils {
         true,   /* Hessian */
         true,   /* Difference_of_gaussians */
         false,   /* Membrane_projections */
-        false,  /* Variance */
-        false,  /* Mean */
-        false,  /* Minimum */
-        false,  /* Maximum */
-        false,  /* Median */
+        true,  /* Variance */
+        true,  /* Mean */
+        true,  /* Minimum */
+        true,  /* Maximum */
+        true,  /* Median */
         false,  /* Anisotropic_diffusion */
         false,  /* Bilateral */
         false,  /* Lipschitz */

@@ -131,11 +131,13 @@
                     <version>3.1.1</version>
                 </dependency>
                 
-                <dependency>
-                    <groupId>net.imagej</groupId>
-                    <artifactId>ij</artifactId>
-                    <version>1.52t</version>
-                </dependency>
+                <!-- https://mvnrepository.com/artifact/net.imagej/ij -->
+				<dependency>
+				    <groupId>net.imagej</groupId>
+				    <artifactId>ij</artifactId>
+				    <version>1.53i</version>
+				</dependency>
+
                 <dependency>
                     <groupId>sc.fiji</groupId>
                     <artifactId>VIB-lib</artifactId>
