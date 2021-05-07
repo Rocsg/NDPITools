@@ -8,29 +8,33 @@ import fr.cirad.image.ndpisafe.PluginRectangleExtract;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.plugin.frame.PlugInFrame;
 
 import java.io.File;
 import java.util.*;
 
-public class ScriptMathieu {
+public class ScriptMathieu extends PlugInFrame{
 
+    public ScriptMathieu(String title) {
+		super(title);
+	}
+
+    public ScriptMathieu() {
+    	super("");
+    }
+    
+	//This method is entry point when testing from Eclipse
     public static void main(String[] args) {
-        // TODO Auto-generated method stub
-        //ImageJ im = new ImageJ();
-
-        //faireTest0();
-        //interexpertTest();
-        listImgToProcess();
-        
+		ImageJ ij=new ImageJ();	
+		new ScriptMathieu().run("");
     }
+	
+	//This method is entry point when testing from Fiji
+	public void run(String arg) {
+        listImgToProcess();		
+	}
+	
 
-    public static void faireTest0() {        
-        System.out.println("Blabla");
-    }
-
-    public static void maCame() {
-    	System.out.println("Test merge");
-    }
     
     public static void faireTest1() {        
         ImagePlus impRef = IJ.openImage("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/FromRomain/To_Mat/Weka_test/Stack_annotations_512_pix.tif");
