@@ -337,7 +337,7 @@ public class TestRomain extends PlugInFrame{
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Stack_annotations_"+targetResolution+"_pix.tif");
             VitimageUtils.printImageResume(binaryValT);
 			binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,0.75,0.8);
-			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,true);
 		}
 		
 		public static void step_04_measure_scores(int setType,boolean useAugVal) {
@@ -353,7 +353,7 @@ public class TestRomain extends PlugInFrame{
                 System.out.println("\n\n"+d1+" "+d2);
             	ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba.tif");
             	binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,d1,d2);
-    			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+    			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,true);
     			
             
 //			VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT).show();

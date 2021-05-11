@@ -1,6 +1,7 @@
 package fr.cirad.image.mlutils;
 
 import java.awt.List;
+import java.awt.Point;
 import java.awt.Polygon;
 import java.io.File;
 import java.io.FileReader;
@@ -24,6 +25,7 @@ import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
@@ -319,7 +321,7 @@ public class SegmentationUtils {
         return (1.0*inter)/union;
 }
 
-	public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest) {
+	public static void scoreComparisonSegmentations(ImagePlus segRef,ImagePlus segTest,boolean verbose) {
 		double accIOU=0;
 		int nTotReal=0;
 		int nTotPred=0;
@@ -335,11 +337,9 @@ public class SegmentationUtils {
 		int[]FP=new int[20];
 		int[]nPred=new int[20];
 		int[]nReal=new int[20];
-		for(int z=1;z<2;z++) {
+		for(int z=0;z<Z;z++) {
 			ImagePlus binaryReal=new Duplicator().run(segRef,1,1,z+1,z+1,1,1);
-			binaryReal.show();
 			ImagePlus binaryPred=new Duplicator().run(segTest,1,1,z+1,z+1,1,1);
-			binaryPred.show();
             double iouGlob=SegmentationUtils.IOU(binaryReal,binaryPred);
             Roi[]rReal=SegmentationUtils.segmentationToRoi(binaryReal);
             Roi[]rPred=SegmentationUtils.segmentationToRoi(binaryPred);
@@ -357,17 +357,16 @@ public class SegmentationUtils {
             }
 
             if(rPred!=null) {
-            	System.out.println("Starting hungarian with "+rReal.length+" reals and "+rPred.length+" preds.");
 				nTotReal+=rReal.length;
 				nTotPred+=rPred.length;
 				Object[][]tab=SegmentationUtils.roiPairingHungarianMethod(rReal,rPred);
 				boolean []checkedPred=new boolean[rPred.length];
 				for(int i=0;i<tab.length;i++) {	
-					System.out.println(tab[i][0]+" "+tab[i][1]+" "+tab[i][2]);
+//					System.out.println(tab[i][0]+" "+tab[i][1]+" "+tab[i][2]);
 					int index=(int)Math.floor(((Double)tab[i][2]/20.0));
 					if(index>19)index=19;
 					//nReal[index]++;
-					if((Integer)tab[i][0]<0) {System.out.println("Un out à index="+index);FN[index]++;FNFull++;}
+					if((Integer)tab[i][0]<0) {FN[index]++;FNFull++;}
 					else {
 						checkedPred[(Integer)tab[i][0]]=true;
 						int index2=(int)Math.floor(((Double)getRoiSurface(rPred[ (Integer)tab[i][0] ] )/20.0));
@@ -398,27 +397,56 @@ public class SegmentationUtils {
 
 		//Compute False positive
 		FPFull=nTotPred-TPFull;
+		int TPpti=0;
+		int TPgrand=0;
+		int FNpti=0;
+		int FNgrand=0;
+		int FPpti=0;
+		int FPgrand=0;
+		double ioupti=0;
+		double iougrand=0;
+		int countPti=0;
+		int countGrand=0;
+		String[]codesPython=new String[] {"prec=[","rec=[","iou=["};
 		for(int i=0;i<20;i++) {
-			
-			System.out.println("Classe ["+(i*20)+" - "+((i+1)*20)+"]: nReal="+nReal[i]+" nPred="+nPred[i]+" nMatch="+totMatchClass[i]+" TP="+TP[i]+" FP="+FP[i]+" FN="+FN[i]);
-		}
-		System.out.println("Total real)"+nTotReal);
-		double globPrec=VitimageUtils.dou(TPFull*1.0/(nTotPred));
-		double globRec=VitimageUtils.dou(TPFull*1.0/(nTotReal));
-		System.out.println("Summary : Prec="+globPrec+" , Rec="+globRec+" , mean IOU="+accIOU+" . ");
-		for(int i=0;i<4;i++) {
-			System.out.println();
-			for(int j=0;j<5;j++) {
-				int indBase=i*5+j;
-				String precision=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FP[i]));
-				String recall=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FN[i]));
-				String iou=""+(VitimageUtils.dou(iouPerClass[indBase]/TP[indBase]));
-				if(TP[indBase]==0) precision=recall=iou="N/A";
-				System.out.print("Class["+(indBase*20)+" - "+((indBase+1)*20)+"]:"+precision+" , "+recall+" , "+iou+" ");
+			String precision=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FP[i]));
+			String recall=""+VitimageUtils.dou(TP[i]*1.0/(TP[i]+FN[i]));
+			String iou=""+(VitimageUtils.dou(iouPerClass[i]/TP[i]));
+			if(TP[i]==0) precision=recall=iou="inf";
+			codesPython[0]+=""+precision+(i==19 ? "]" : ",");
+			codesPython[1]+=""+recall+(i==19 ? "]" : ",");
+			codesPython[2]+=""+iou+(i==19 ? "]" : ",");
+			if(verbose)System.out.println("Classe ["+(i*20)+" - "+((i+1)*20)+"]: pr,rec,iou "+precision+" , "+recall+" , "+iou+"    nReal"+nReal[i]+" nPred="+nPred[i]+" nMatch="+totMatchClass[i]+" TP="+TP[i]+" FP="+FP[i]+" FN="+FN[i]);
+			if(i<5) {
+				TPpti+=TP[i];
+				FNpti+=FN[i];
+				FPpti+=FP[i];
+				ioupti+=iouPerClass[i];
+				countPti+=TP[i];
+			}
+			else {
+				TPgrand+=TP[i];
+				FNgrand+=FN[i];
+				FPgrand+=FP[i];
+				iougrand+=iouPerClass[i];
+				countGrand+=TP[i];
 			}
 		}
+		ioupti/=countPti;
+		iougrand/=countGrand;
+//		System.out.println("Total real="+nTotReal+" total pred="+nTotPred);
+		double globPrec=VitimageUtils.dou(TPFull*1.0/(nTotPred));
+		double globRec=VitimageUtils.dou(TPFull*1.0/(nTotReal));
+		double globPrecPti=VitimageUtils.dou(TPpti*1.0/(TPpti+FPpti));
+		double globRecPti=VitimageUtils.dou(TPpti*1.0/(TPpti+FNpti));
+		double globPrecGrand=VitimageUtils.dou(TPgrand*1.0/(TPgrand+FPgrand));
+		double globRecGrand=VitimageUtils.dou(TPgrand*1.0/(TPgrand+FNgrand));
+		System.out.println("Summary : Prec="+globPrec+" , Rec="+globRec+" , mean IOU="+accIOU+" . ");
+		System.out.println("Little's: Prec="+globPrecPti+" , Rec="+globRecPti+" , mean IOU="+ioupti+" . ");
+		System.out.println("Large 's: Prec="+globPrecGrand+" , Rec="+globRecGrand+" , mean IOU="+iougrand+" . ");
 		SegmentationUtils.getSizeMap(segRef,0,20,5).show();
-		VitimageUtils.waitFor(5000000);
+		for(String c : codesPython)System.out.println(c);
+		
 	}
 
 	public static ImagePlus getWatershed(ImagePlus in,ImagePlus marker,ImagePlus mask) {
@@ -437,13 +465,13 @@ public class SegmentationUtils {
 		return VitimageUtils.slicesToStack(tab);
 	}
 	
-	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap,double thresh1,double thresh2) {
+	public static ImagePlus getPointRoiImageOfMaximaFromProbaMap2D(ImagePlus probaMap,double thresh) {
 		//Lisser l'image de probabilité
 		ImagePlus probaGauss=probaMap.duplicate();
 		IJ.run(probaGauss, "Median...", "sigma=2 stack");
 
 		//Extraire les maxima
-		IJ.run(probaGauss, "Find Maxima...", "prominence="+thresh1+" output=[Single Points]");
+		IJ.run(probaGauss, "Find Maxima...", "prominence="+thresh+" output=[Single Points]");
 		VitimageUtils.waitFor(100);
 		ImagePlus tmp=IJ.getImage();
 		ImagePlus pts=tmp.duplicate();
@@ -451,8 +479,27 @@ public class SegmentationUtils {
 		tmp.close();
 		pts.setTitle("Points");
 		probaGauss.changes=false;
+		ImagePlus ret=pts.duplicate();
 		probaGauss.close();
+		pts.close();
+		return ret;
+	}
 		
+	
+	public static Point[] getCoordinatesOfMaximaFromProbaMap2D(ImagePlus probaMap,double thresh) {
+		probaMap.show();
+		RoiManager rm=RoiManager.getRoiManager();
+		rm.reset();
+		IJ.run(probaMap, "Find Maxima...", "prominence="+thresh+" output=[Point Selection]");
+		rm.addRoi(probaMap.getRoi());
+		PointRoi pr=(PointRoi) rm.getRoi(0);
+		return pr.getContainedPoints();
+	}
+	
+	public static ImagePlus getSegmentationFromProbaMap2D(ImagePlus probaMap,double thresh1,double thresh2) {
+		//Get image of maxima
+		ImagePlus pts=getPointRoiImageOfMaximaFromProbaMap2D(probaMap,thresh1);
+
 		//Extraire le masque de la zone de proba interessante
 		ImagePlus probaGauss2=probaMap.duplicate();
 		IJ.run(probaGauss2, "Median...", "sigma=2 stack");

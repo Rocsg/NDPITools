@@ -142,7 +142,7 @@ public class VesselSegmentation extends PlugInFrame{
 	            };
 	            if(i<3)imgs[0]=VitimageUtils.splitRGBStackHeadLess(imgs[0])[(i)];
 	            else        imgs[0]=VitimageUtils.getHSB(imgs[0])[(i-3)];
-	            SegmentationUtils.wekaTrainModel(imgs[0],imgs[1],SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/model_layer_1"+("_AUGSET"+i));
+	            SegmentationUtils.wekaTrainModel(imgs[0],imgs[1],SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Models/model_layer_1"+("_AUGSET"+i));
             }	
         }
        		
@@ -157,7 +157,7 @@ public class VesselSegmentation extends PlugInFrame{
             	if(i<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(i)];
 	            else        img=VitimageUtils.getHSB(img)[(i-3)];
 	            IJ.log("Apply model aug "+i);
-        		resultTab[i]=SegmentationUtils.wekaApplyModel(img,SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Weka_training/model_layer_1"+("_AUGSET"+i+""));
+        		resultTab[i]=SegmentationUtils.wekaApplyModel(img,SegmentationUtils.getStandardRandomForestParams(i),SegmentationUtils.getStandardRandomForestFeatures(),vesselsDir+"/Data/Processing/Step_01_detection/Models/model_layer_1"+("_AUGSET"+i+""));
         		resultTab[i]=new Duplicator().run(resultTab[i],2,2,1,resultTab[i].getNSlices(),1,1);
                 IJ.saveAsTiff(resultTab[i],vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba_"+"STEP"+i+".tif");
                 
@@ -178,16 +178,14 @@ public class VesselSegmentation extends PlugInFrame{
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
 			 ImagePlus []res=new ImagePlus[100];
 			 int incr=0;
-            for(double d1=0.5;d1<=0.5;d1+=0.05){
-                for(double d2=0.7;d2<=0.7;d2+=0.1){
+            for(double d1=0.5;d1<=0.5;d1+=0.1){
+                for(double d2=0.6;d2<=0.85;d2+=0.05){
             	System.out.println("\n "+d1+"  -  "+d2);
                 ImagePlus binValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_STEP0")+".tif");
             	ImagePlus binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binValT,d1,d2);
-            	System.out.println("a");
-            	//            	binaryValT.show();
- //           	VitimageUtils.waitFor(1000000);
-            	SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
-            	System.out.println("b");
+            	IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
+
+            	SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,false);
     			ImagePlus img=VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT);
     			img.setTitle(d1+" , "+d2);
     			res[incr++]=img;
@@ -203,9 +201,8 @@ public class VesselSegmentation extends PlugInFrame{
         		System.out.println("Wrong data set type :"+dataType);
         		System.exit(0);
         	}
-            ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
-		//	binaryValT=SegmentationUtils.cleanVesselSegmentation(binaryValT,targetResolutionVessel,MIN_VB_512,MAX_VB_512);
+			ImagePlus binaryValT=SegmentationUtils.cleanVesselSegmentation(binaryValT,targetResolutionVessel,MIN_VB_512,MAX_VB_512);
             ImagePlus sourceValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_source.tif");
             SegmentationUtils.visualizeMaskEffectOnSourceData(sourceValT,binaryValT,3).show();
             SegmentationUtils.visualizeMaskDifferenceOnSourceData(sourceValT,binaryRefT,binaryValT).show();
