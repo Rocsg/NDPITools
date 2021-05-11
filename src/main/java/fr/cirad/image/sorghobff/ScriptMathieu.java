@@ -46,7 +46,7 @@ public class ScriptMathieu extends PlugInFrame{
         impTest.show();
 
         IJ.log(""+SegmentationUtils.IOU(impRef, impTest));
-        SegmentationUtils.scoreComparisonSegmentations(impRef, impTest);
+        SegmentationUtils.scoreComparisonSegmentations(impRef, impTest,true);
 
         VitimageUtils.waitFor(10000);
         System.exit(0);
@@ -62,7 +62,7 @@ public class ScriptMathieu extends PlugInFrame{
         ImagePlus impRef = imgRomain[1];
         ImagePlus impTest = imgMatthieu[1];
 
-        SegmentationUtils.scoreComparisonSegmentations(impRef, impTest);
+        SegmentationUtils.scoreComparisonSegmentations(impRef, impTest,true);
         ImagePlus result1 = SegmentationUtils.visualizeMaskDifferenceOnSourceData(imgBase,impRef,impTest);
         //ImagePlus result2 = SegmentationUtils.visualizeMaskEffectOnSourceData(impRef,impTest,0);
 
