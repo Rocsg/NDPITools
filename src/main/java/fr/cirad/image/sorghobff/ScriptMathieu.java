@@ -9,6 +9,8 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.frame.PlugInFrame;
+import ij.plugin.frame.RoiManager;
+import ij.gui.Roi;
 
 import java.io.File;
 import java.util.*;
@@ -73,80 +75,167 @@ public class ScriptMathieu extends PlugInFrame{
     
     public static void listImgToProcess() {
     	
-    	new ImageJ();
-    	//ImagePlus img = PluginOpenPreview.runHeadlessAndGetImagePlus("D:/DONNEES/Test/G01P1E18.ndpi");
-    	//img.show();
+    	// Inputs needed in line 83 / 101 / 102
+    	// Possibility to make the soft more reliable by adding a step after Analyze particles, selecting the largest ROI, just in case there is several
+    	// Possibility to remove the ndpisplit (?) logs and add some hints about where is the process at
     	
-    	ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus("D:/DONNEES/Test/G01P1E18.ndpi");
-    	ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 3, 0, 0, 500, 500);
-    	img.show();
-    	
-    /*	String csvpath ="D:/DONNEES/Recap_echantillons_2017.csv";
+    	//Loading the summary CSV file
+    	String csvpath ="D:/DONNEES/Recap_echantillons_2017_test.csv";
     	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
     	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
     	
-    	//String [][]finalSheet = {{"Location","Side"}};
-    	
-    	for(int i=0;i<baseSheet.length;i++) {
-    		System.out.println("Accepte ?"+baseSheet[i][11].equals(""));
+    	//Extracting useful data from the CSV - Year/Genotype/Plant/Node/File name/which slice to chose
+    	for(int i=2;i<baseSheet.length;i++) {
     		if(baseSheet[i][11].equals("")) {
-    			String[] intermediarySheet = {baseSheet[i][4],baseSheet[i][6]};
+    			String[] intermediarySheet = {baseSheet[i][0],baseSheet[i][1],baseSheet[i][2],baseSheet[i][3],baseSheet[i][4],baseSheet[i][6]};
     			finalSheet.add(intermediarySheet);
-    		
-    		}
+     		}
     	}
     	String [][] finalTab = finalSheet.toArray(new String[finalSheet.size()][2]);
-    	System.out.println("La taille initiale etait "+baseSheet.length+" et la taille finale est "+finalSheet.size());
-    	System.out.println(finalTab[3][1]);
+    	IJ.log("Initial list size was "+(baseSheet.length-2)+" and final list size is "+finalSheet.size());
+    	IJ.log(finalSheet.size()*100/(baseSheet.length-2)+"% of the images are usable.");	
+    	//for(String[]s:finalSheet)System.out.println(""+s[0]+s[1]+s[2]+s[3]+s[4]+s[5]);
     	
-    	for(String[]s:finalSheet)System.out.println(s[0]+" "+s[1]);
-    	
-    	
-    	String basePath ="D:/DONNEES/Test"; //Main directory with all NDPI
-    	String ndpiName ="G01P1E18.ndpi";
-    	String fullNdpiPath = new File(basePath,ndpiName).getAbsolutePath(); 
-    	
-    	NDPI myndpi = PluginOpenPreview.runHeadlessAndGetNDPI(fullNdpiPath);
-    	System.out.println("TATA");
-    	myndpi.previewImage.show();
-    	/*
-    	
-    	
-    	/*
-    	//if(baseSheet[2][11].equals("")) {
-		String[] intermediarySheet = {baseSheet[2][4],baseSheet[2][6]};
-		System.out.println(intermediarySheet[0]);
-		finalSheet.add(intermediarySheet);
-    	
-    	
-    	ArrayList<String> finalSheet = new ArrayList<String>(1);
-    	
-    	ArrayList[][] table = new ArrayList[1][1];
-    	
-    	
-    	
-    	
-    	table[0][0] = new ArrayList(finalSheet); // add another ArrayList object to [0,0]
-    	table[0][0].add(null); // add object to that ArrayList
-    	
-    	//bla
-    	
-    	//LinkedList<String> finalSheet = new LinkedList<String>();
-    	//String [][]finalSheet = {{"Location","Side"}};
-    	//String imgPath = sheet[][];
-    	//System.out.println(baseSheet[2][4]);
-    	//System.out.println(finalSheet[0][0]);
-    	
-    	
-    	//String [][]finalSheet = finalSheet.push({sheet[2][4],sheet[2][5]});
-    	//finalSheet.push({sheet[2][4],sheet[2][5]});
-    	
-    	//if(baseSheet[2][11].equals("")) {
-    		//String[] intermediarySheet = {baseSheet[2][4],baseSheet[2][6]};
-			//System.out.println(intermediarySheet[0]);
-			//finalSheet.add(intermediarySheet);
-			*/
-			
-	}
+  
+    	// Indicating places to pick the images up and store the resulting images
+    	String inputDirectory="D:/DONNEES/Test/Input/";
+		String outputDirectory="D:/DONNEES/Test/Output/";
+				
+		
+		for(int j=0;j<finalTab.length;j++) {
+
+			String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
+			IJ.log("Processing transformation : ");
+			// NDPI preview
+			ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus(fileIn);
+	    	IJ.log(VitimageUtils.imageResume(preview));
+	    	// Setting parameters for extraction
+	    	String nameImg = finalTab[j][0]+"_"+finalTab[j][1]+"_"+finalTab[j][2]+"_"+finalTab[j][3];
+	    	int targetHeight = preview.getHeight();
+	    	int targetWidth = preview.getWidth();
+	    	int resampleFactor = 8;
+	    	double fact=1.0/resampleFactor;
+	    	
+	    	// Loops to sort the images according to where the slice of interest is (G, D or only once slice on the image)
+	    	if(finalTab[j][5].equals("G")) {
+	    		
+	    		// Extract the left side
+	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth/2, targetHeight);
+	    		IJ.log(VitimageUtils.imageResume(img));
+	    		img.show();
+	    		img.setTitle("Extract");
+	    		
+	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
+	    		ImagePlus imgDup = img.duplicate();
+	    		IJ.run(imgDup, "8-bit", "");
+	    		IJ.setThreshold(140, 255);
+	    		IJ.run(imgDup, "Convert to Mask", "");
+	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
+	      	
+		    	RoiManager rm = RoiManager.getRoiManager();
+		    	Roi roi = rm.getRoi(0);
+		    	img.setRoi(roi);
+		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
+		    	IJ.run(img, "Crop", "");
+		    	IJ.run(img, "Select None", "");
+		    	rm.close();
+		    	
+		    	// Resampling and saving the resulting images
+		    	int targetHeightExtract=img.getHeight()/resampleFactor;
+		    	int targetWidthExtract=img.getWidth()/resampleFactor;
+		        img.show();
+		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
+		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
+		        img=IJ.getImage();
+		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
+		        img.changes=false;
+		        img.close();
+		        img=IJ.getImage();
+		        img.changes=false;
+		        img.close();
+		        IJ.log(fileIn+" converted.");
+		        
+	    	} else if(finalTab[j][5].equals("D")) {
+	    		
+	    		// Extract the left side
+	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, targetWidth/2, 0, targetWidth-targetWidth/2, targetHeight);
+	    		IJ.log(VitimageUtils.imageResume(img));
+	    		img.show();
+	    		img.setTitle("Extract");
+
+	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
+	    		ImagePlus imgDup = img.duplicate();
+	    		IJ.run(imgDup, "8-bit", "");
+	    		IJ.setThreshold(140, 255);
+	    		IJ.run(imgDup, "Convert to Mask", "");
+	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
+	      	
+		    	RoiManager rm = RoiManager.getRoiManager();
+		    	Roi roi = rm.getRoi(0);
+		    	img.setRoi(roi);
+		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
+		    	IJ.run(img, "Crop", "");
+		    	IJ.run(img, "Select None", "");
+		    	rm.close();
+
+		    	// Resampling and saving the resulting images
+		    	int targetHeightExtract=img.getHeight()/resampleFactor;
+		    	int targetWidthExtract=img.getWidth()/resampleFactor;
+		        img.show();
+		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
+		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
+		        img=IJ.getImage();
+		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
+		        img.changes=false;
+		        img.close();
+		        img=IJ.getImage();
+		        img.changes=false;
+		        img.close();
+		        IJ.log(fileIn+" converted.");
+		        
+	    	} else{
+	    		
+	    		// Extract the left side
+	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth, targetHeight);
+	    		IJ.log(VitimageUtils.imageResume(img));
+	    		img.show();
+	    		img.setTitle("Extract");
+
+	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
+	    		ImagePlus imgDup = img.duplicate();
+	    		IJ.run(imgDup, "8-bit", "");
+	    		IJ.setThreshold(140, 255);
+	    		IJ.run(imgDup, "Convert to Mask", "");
+	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
+	      	
+		    	RoiManager rm = RoiManager.getRoiManager();
+		    	Roi roi = rm.getRoi(0);
+		    	img.setRoi(roi);
+		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
+		    	IJ.run(img, "Crop", "");
+		    	IJ.run(img, "Select None", "");
+		    	rm.close();
+
+		    	// Resampling and saving the resulting images
+		    	int targetHeightExtract=img.getHeight()/resampleFactor;
+		    	int targetWidthExtract=img.getWidth()/resampleFactor;
+		        img.show();
+		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
+		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
+		        img=IJ.getImage();
+		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
+		        img.changes=false;
+		        img.close();
+		        img=IJ.getImage();
+		        img.changes=false;
+		        img.close();
+		        IJ.log(fileIn+" converted.");
+	    	}    	
+    }
+    
+		IJ.log("THE END");
+    }		
 }
+	
+
 
