@@ -183,7 +183,7 @@ public class VesselSegmentation extends PlugInFrame{
             	System.out.println("\n "+d1+"  -  "+d2);
                 ImagePlus binValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_STEP0")+".tif");
             	ImagePlus binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binValT,d1,d2);
-            	IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
+            	//IJ.saveAsTiff(result,vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_monomodel")+".tif");
 
             	SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,false);
     			ImagePlus img=VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT);
@@ -202,10 +202,10 @@ public class VesselSegmentation extends PlugInFrame{
         		System.exit(0);
         	}
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
-			ImagePlus binaryValT=SegmentationUtils.cleanVesselSegmentation(binaryValT,targetResolutionVessel,MIN_VB_512,MAX_VB_512);
+			//ImagePlus binaryValT=SegmentationUtils.cleanVesselSegmentation(binaryValT,targetResolutionVessel,MIN_VB_512,MAX_VB_512);
             ImagePlus sourceValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_source.tif");
-            SegmentationUtils.visualizeMaskEffectOnSourceData(sourceValT,binaryValT,3).show();
-            SegmentationUtils.visualizeMaskDifferenceOnSourceData(sourceValT,binaryRefT,binaryValT).show();
+          //  SegmentationUtils.visualizeMaskEffectOnSourceData(sourceValT,binaryValT,3).show();
+           // SegmentationUtils.visualizeMaskDifferenceOnSourceData(sourceValT,binaryRefT,binaryValT).show();
 		}
 
        

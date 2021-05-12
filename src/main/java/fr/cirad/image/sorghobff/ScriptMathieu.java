@@ -2,12 +2,12 @@ package fr.cirad.image.sorghobff;
 
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.mlutils.SegmentationUtils;
-import fr.cirad.image.ndpisafe.NDPI;
 import fr.cirad.image.ndpisafe.PluginOpenPreview;
 import fr.cirad.image.ndpisafe.PluginRectangleExtract;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.plugin.Scaler;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
 import ij.gui.Roi;
@@ -16,8 +16,11 @@ import java.io.File;
 import java.util.*;
 
 public class ScriptMathieu extends PlugInFrame{
+	private static final long serialVersionUID = 1L;
 
-    public ScriptMathieu(String title) {
+	
+	/**  ---------------------------------------- Constructors and entry points -----------------------------------------------*/
+	public ScriptMathieu(String title) {
 		super(title);
 	}
 
@@ -33,11 +36,120 @@ public class ScriptMathieu extends PlugInFrame{
 	
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
-        listImgToProcess();		
+		// N = 1200    n=700
+		int n=7003 ; int N=8001;
+		System.out.println( VitimageUtils.dou(n*100.0/N) );
+		
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
+		img.show();
+		//testListImgToProcess();
+	}
+	
+	
+	public static ImagePlus resize(ImagePlus img, int targetX,int targetY,int targetZ) {
+        return Scaler.resize(img, targetX,targetY, targetZ, " interpolation=Bilinear average create"); 		
 	}
 	
 
+	public static void testListImgToProcess() {
+		listImgToProcess(null,null,null);
+	}
+	
+	/**  ---------------------------------------- Test functions -----------------------------------------------*/
+    public static void listImgToProcess(String csvPath, String inputDirectory, String outputDirectory) {    	
+    	// To use this function, set the input dir at lines 49 69 78
+    	// TODO : Possibility to make the soft more reliable by adding a step after Analyze particles, selecting the largest ROI, just in case there is several
+    	// TODO : Possibility to remove the ndpisplit (?) logs and add some hints about where is the process at
+    	
+    	//General parameters of the function
+    	int resampleFactor = 8;
+    	double fact=1.0/resampleFactor;
+
+    	 	
+    	//Extracting useful data from the CSV - Year/Genotype/Plant/Node/File name/which slice to chose
+    	if(csvPath==null) csvPath ="D:/DONNEES/Recap_echantillons_2017_test.csv"; //Summary CSV file
+    	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvPath);
+    	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
+    	    	
+    	for(int i=2;i<baseSheet.length;i++) {
+    		if(baseSheet[i][11].equals("")) {
+    			String[] intermediarySheet = {baseSheet[i][0],baseSheet[i][1],baseSheet[i][2],baseSheet[i][3],baseSheet[i][4],baseSheet[i][6]};
+    			finalSheet.add(intermediarySheet);
+     		}
+    	}
+    	String [][] finalTab = finalSheet.toArray(new String[finalSheet.size()][2]);
+    	IJ.log("Initial list size was "+(baseSheet.length-2)+" and final list size is "+finalSheet.size());
+    	IJ.log(finalSheet.size()*100.0/(baseSheet.length-2)+"% of the images are usable.");	
+    	
+    	// Indicating input dir (*.ndpi images) and output dir (*.tif images) )
+    	if(inputDirectory==null) inputDirectory="D:/DONNEES/Test/Input/";
+    	if(outputDirectory==null) outputDirectory="D:/DONNEES/Test/Output/";
+
+    	
+   	
+		// Loop over the selected input ndpi's
+		for(int j=0;j<finalTab.length;j++) {
+			String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
+			IJ.log("Processing extraction of image #"+(j+1)+" / "+(finalTab.length)+" : "+finalTab[j][4]);
+
+			// Compute NDPI preview and set parameters for extraction
+			ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus(fileIn);
+	    	String nameImgOut = finalTab[j][0]+"_"+finalTab[j][1]+"_"+finalTab[j][2]+"_"+finalTab[j][3];
+	    	int targetHeight = preview.getHeight();
+	    	int targetWidth = preview.getWidth();
+	    		    	
+
+	    	// Check whether the slice of interest is (G (left), D (right) or all the image)
+	    	ImagePlus img=null;
+	    	if(finalTab[j][5].equals("G")) {// The interesting data is on the left part of the image	    		
+	    		img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth/2, targetHeight);
+	    	}
+			else if(finalTab[j][5].equals("D")) {// The interesting data is on the right part of the image
+	    		img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, targetWidth/2, 0, targetWidth-targetWidth/2, targetHeight);
+			}
+			else{		
+	    		img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth, targetHeight);
+			}
+	    	
+  		 	// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
+    		img.show();
+    		img.setTitle("Extract");
+    		ImagePlus imgDup = img.duplicate();
+    		IJ.run(imgDup, "8-bit", "");
+    		IJ.setThreshold(140, 255);//Roughly get out the white part of the image
+    		IJ.run(imgDup, "Convert to Mask", "");
+    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
+	    	RoiManager rm = RoiManager.getRoiManager();
+	    	Roi roi = rm.getRoi(0);
+	    	img.setRoi(roi);
+	    	//TODO : save ROi in a specified place, in order to struggle later with various geometries  
+	    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
+	    	IJ.run(img, "Crop", "");
+	    	IJ.run(img, "Select None", "");
+	    	rm.close();
+	    	img.hide();
+	    	
+	    	// Resample and save the results
+	    	int targetHeightExtract=img.getHeight()/resampleFactor;
+	    	int targetWidthExtract=img.getWidth()/resampleFactor;
+	        IJ.save(img,outputDirectory+"/"+nameImgOut+".tif");//save the level 1 version         
+	        img=resize(img, targetWidthExtract, targetHeightExtract, 1);
+	        IJ.save(img,outputDirectory+"/"+nameImgOut+"_resampled"+resampleFactor+".tif");
+	        img=null;
+	        IJ.log(fileIn+" converted.");		        
+		}
+		IJ.log("THE END");
+    }	
     
+//    IJ.run(img, "Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
+//    img=IJ.getImage();
+//    img.hide();
+    
+    
+    
+    
+    
+ 	/**  ---------------------------------------- Older test, not in use anymore -----------------------------------------------*/
     public static void faireTest1() {        
         ImagePlus impRef = IJ.openImage("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/FromRomain/To_Mat/Weka_test/Stack_annotations_512_pix.tif");
         ImagePlus impTest = IJ.openImage("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/FromRomain/To_Mat/Marc_test/Stack_annotations_512_pix.tif");
@@ -73,168 +185,6 @@ public class ScriptMathieu extends PlugInFrame{
     }
     
     
-    public static void listImgToProcess() {
-    	
-    	// Inputs needed in line 83 / 101 / 102
-    	// Possibility to make the soft more reliable by adding a step after Analyze particles, selecting the largest ROI, just in case there is several
-    	// Possibility to remove the ndpisplit (?) logs and add some hints about where is the process at
-    	
-    	//Loading the summary CSV file
-    	String csvpath ="D:/DONNEES/Recap_echantillons_2017_test.csv";
-    	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvpath);
-    	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
-    	
-    	//Extracting useful data from the CSV - Year/Genotype/Plant/Node/File name/which slice to chose
-    	for(int i=2;i<baseSheet.length;i++) {
-    		if(baseSheet[i][11].equals("")) {
-    			String[] intermediarySheet = {baseSheet[i][0],baseSheet[i][1],baseSheet[i][2],baseSheet[i][3],baseSheet[i][4],baseSheet[i][6]};
-    			finalSheet.add(intermediarySheet);
-     		}
-    	}
-    	String [][] finalTab = finalSheet.toArray(new String[finalSheet.size()][2]);
-    	IJ.log("Initial list size was "+(baseSheet.length-2)+" and final list size is "+finalSheet.size());
-    	IJ.log(finalSheet.size()*100/(baseSheet.length-2)+"% of the images are usable.");	
-    	//for(String[]s:finalSheet)System.out.println(""+s[0]+s[1]+s[2]+s[3]+s[4]+s[5]);
-    	
-  
-    	// Indicating places to pick the images up and store the resulting images
-    	String inputDirectory="D:/DONNEES/Test/Input/";
-		String outputDirectory="D:/DONNEES/Test/Output/";
-				
-		
-		for(int j=0;j<finalTab.length;j++) {
-
-			String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
-			IJ.log("Processing transformation : ");
-			// NDPI preview
-			ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus(fileIn);
-	    	IJ.log(VitimageUtils.imageResume(preview));
-	    	// Setting parameters for extraction
-	    	String nameImg = finalTab[j][0]+"_"+finalTab[j][1]+"_"+finalTab[j][2]+"_"+finalTab[j][3];
-	    	int targetHeight = preview.getHeight();
-	    	int targetWidth = preview.getWidth();
-	    	int resampleFactor = 8;
-	    	double fact=1.0/resampleFactor;
-	    	
-	    	// Loops to sort the images according to where the slice of interest is (G, D or only once slice on the image)
-	    	if(finalTab[j][5].equals("G")) {
-	    		
-	    		// Extract the left side
-	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth/2, targetHeight);
-	    		IJ.log(VitimageUtils.imageResume(img));
-	    		img.show();
-	    		img.setTitle("Extract");
-	    		
-	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
-	    		ImagePlus imgDup = img.duplicate();
-	    		IJ.run(imgDup, "8-bit", "");
-	    		IJ.setThreshold(140, 255);
-	    		IJ.run(imgDup, "Convert to Mask", "");
-	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
-	      	
-		    	RoiManager rm = RoiManager.getRoiManager();
-		    	Roi roi = rm.getRoi(0);
-		    	img.setRoi(roi);
-		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
-		    	IJ.run(img, "Crop", "");
-		    	IJ.run(img, "Select None", "");
-		    	rm.close();
-		    	
-		    	// Resampling and saving the resulting images
-		    	int targetHeightExtract=img.getHeight()/resampleFactor;
-		    	int targetWidthExtract=img.getWidth()/resampleFactor;
-		        img.show();
-		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
-		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
-		        img=IJ.getImage();
-		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
-		        img.changes=false;
-		        img.close();
-		        img=IJ.getImage();
-		        img.changes=false;
-		        img.close();
-		        IJ.log(fileIn+" converted.");
-		        
-	    	} else if(finalTab[j][5].equals("D")) {
-	    		
-	    		// Extract the left side
-	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, targetWidth/2, 0, targetWidth-targetWidth/2, targetHeight);
-	    		IJ.log(VitimageUtils.imageResume(img));
-	    		img.show();
-	    		img.setTitle("Extract");
-
-	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
-	    		ImagePlus imgDup = img.duplicate();
-	    		IJ.run(imgDup, "8-bit", "");
-	    		IJ.setThreshold(140, 255);
-	    		IJ.run(imgDup, "Convert to Mask", "");
-	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
-	      	
-		    	RoiManager rm = RoiManager.getRoiManager();
-		    	Roi roi = rm.getRoi(0);
-		    	img.setRoi(roi);
-		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
-		    	IJ.run(img, "Crop", "");
-		    	IJ.run(img, "Select None", "");
-		    	rm.close();
-
-		    	// Resampling and saving the resulting images
-		    	int targetHeightExtract=img.getHeight()/resampleFactor;
-		    	int targetWidthExtract=img.getWidth()/resampleFactor;
-		        img.show();
-		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
-		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
-		        img=IJ.getImage();
-		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
-		        img.changes=false;
-		        img.close();
-		        img=IJ.getImage();
-		        img.changes=false;
-		        img.close();
-		        IJ.log(fileIn+" converted.");
-		        
-	    	} else{
-	    		
-	    		// Extract the left side
-	    		ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, 0, 0, targetWidth, targetHeight);
-	    		IJ.log(VitimageUtils.imageResume(img));
-	    		img.show();
-	    		img.setTitle("Extract");
-
-	    		// Drawing a bounding box around the image to limit the amount of pixel that will be treated after
-	    		ImagePlus imgDup = img.duplicate();
-	    		IJ.run(imgDup, "8-bit", "");
-	    		IJ.setThreshold(140, 255);
-	    		IJ.run(imgDup, "Convert to Mask", "");
-	    		IJ.run(imgDup, "Analyze Particles...", "size=50000-Infinity pixel include add");
-	      	
-		    	RoiManager rm = RoiManager.getRoiManager();
-		    	Roi roi = rm.getRoi(0);
-		    	img.setRoi(roi);
-		    	IJ.run(img, "Enlarge...", "enlarge=20 pixel");
-		    	IJ.run(img, "Crop", "");
-		    	IJ.run(img, "Select None", "");
-		    	rm.close();
-
-		    	// Resampling and saving the resulting images
-		    	int targetHeightExtract=img.getHeight()/resampleFactor;
-		    	int targetWidthExtract=img.getWidth()/resampleFactor;
-		        img.show();
-		        IJ.save(img,outputDirectory+"/"+nameImg+".tif");
-		        IJ.run("Scale...", "x="+fact+" y="+fact+" width="+targetWidthExtract+" height="+targetHeightExtract+" interpolation=Bilinear average create");//create
-		        img=IJ.getImage();
-		        IJ.save(img,outputDirectory+"/"+nameImg+"_resampled"+resampleFactor+".tif");
-		        img.changes=false;
-		        img.close();
-		        img=IJ.getImage();
-		        img.changes=false;
-		        img.close();
-		        IJ.log(fileIn+" converted.");
-	    	}    	
-    }
-    
-		IJ.log("THE END");
-    }		
 }
 	
 
