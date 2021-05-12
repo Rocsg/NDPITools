@@ -18,14 +18,14 @@ public class PluginRectangleExtract extends PlugInFrame{
 		double y0=roi.getYBase();
 		double dx=roi.getFloatWidth();
 		double dy=roi.getFloatHeight();
-		NDPI ndpi=new NDPI((String) img.getProperty("PreviewOfNDPIPath"));
+		NDPI ndpi=new NDPI((String) img.getProperty("PreviewOfNDPIPath"),false);
 		int level=VitiDialogs.getIntUI("Choose a resolution level (0=high-res, "+ndpi.N+"=low-res"+"Level",ndpi.previewLevelN); 
 		ImagePlus imgOut=ndpi.getExtract(level,x0,y0,dx,dy);
 		imgOut.show();		
 	}	
 
 	public static ImagePlus runHeadlessFromImagePlus(ImagePlus img,int level,double x0,double y0,double dx, double dy) {
-		NDPI ndpi=new NDPI((String) img.getProperty("PreviewOfNDPIPath"));
+		NDPI ndpi=new NDPI((String) img.getProperty("PreviewOfNDPIPath"),false);
 		ImagePlus imgOut=ndpi.getExtract(level,x0,y0,dx,dy);
 		return imgOut;		
 	}	

@@ -12,7 +12,7 @@ public class PluginFullExtract extends PlugInFrame{
 	
 	public void run(String arg) {
 		OpenDialog od=new OpenDialog("Choose a ndpi file");
-		NDPI ndpi=new NDPI(od.getPath());
+		NDPI ndpi=new NDPI(od.getPath(),false);
 		int level=VitiDialogs.getIntUI("Choose a resolution level (0=high-res, "+ndpi.N+"=low-res", ndpi.previewLevelN); 
 		ImagePlus img=ndpi.getExtract(level);
 		img.show();		
