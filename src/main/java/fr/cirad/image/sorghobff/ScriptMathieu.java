@@ -190,6 +190,7 @@ public class ScriptMathieu extends PlugInFrame{
     	
     	//General parameters of the function
     	int resampleFactor = 8;
+    	int boxSize = 200;
     	
     	// Creating an arraylist to store the bounding boxes coordinates and later save them in a .csv
     	ArrayList<String[]> csvCoordinates = new ArrayList<String[]>();
@@ -201,7 +202,7 @@ public class ScriptMathieu extends PlugInFrame{
     	if(outputDirectory==null) outputDirectory="D:/DONNEES/Test/Step2_Output/";    	
     			
     	// Load segmented data from first ML step
-    	//TODO : make a list of all images present in the input directory and make the loop go through them
+    	//TODO : make a list of all images present in the input directory and make the loop go through them avec get.filelist
     	ImagePlus mask = IJ.openImage(inputDirectory+"Mask_Img_insight_15_2.tif");
     	ImagePlus source = IJ.openImage(inputDirectory+"Source_Img_insight_15_2.jpg");
     			
@@ -216,7 +217,7 @@ public class ScriptMathieu extends PlugInFrame{
     		int centroidYSource = (int) Math.round(centroid[1])*resampleFactor;
     		
     		// Extract vessel on source image
-    		Roi areaRoi = IJ.Roi(centroidXSource-100, centroidYSource-100, 200, 200);
+    		Roi areaRoi = IJ.Roi(centroidXSource-(boxSize/2), centroidYSource-(boxSize/2), boxSize, boxSize);
     		source.setRoi(areaRoi);
     		ImagePlus vaisseauExtracted = source.crop();
     		
