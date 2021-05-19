@@ -9,12 +9,9 @@ import ij.ImageJ;
 import ij.ImagePlus;
 import ij.plugin.Scaler;
 import ij.plugin.frame.PlugInFrame;
-import ij.plugin.frame.RoiManager;
 import ij.gui.Roi;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.util.*;
 
 public class ScriptMathieu extends PlugInFrame{
@@ -32,6 +29,7 @@ public class ScriptMathieu extends PlugInFrame{
     
 	//This method is entry point when testing from Eclipse
     public static void main(String[] args) {
+		@SuppressWarnings("unused")
 		ImageJ ij=new ImageJ();	
 		new ScriptMathieu().run("");
     }
@@ -67,7 +65,7 @@ public class ScriptMathieu extends PlugInFrame{
 	
 	public static void testListImgToProcess() {
 		//listImgToProcess(null,null,null);
-		extractVessels(null, null);
+		extractVessels(null, null,null);
 	}
 	
 	
@@ -76,7 +74,6 @@ public class ScriptMathieu extends PlugInFrame{
 	
 	/**  ---------------------------------------- Test functions -----------------------------------------------*/
     public static void listImgToProcess(String csvPath, String inputDirectory, String outputDirectory) {    	
-    	// TODO : Possibility to make the soft more reliable by adding a step after Analyze particles, selecting the largest ROI, just in case there is several
     	
     	//General parameters of the function
     	int resampleFactor = 8;
@@ -181,44 +178,74 @@ public class ScriptMathieu extends PlugInFrame{
 		IJ.log("THE END");
     }	
     
-    public static void extractVessels(String inputDirectory, String outputDirectory) {
+    
+    
+    
+    /** 
+     * Inputs : 
+     * inputDirSource is a directory with images only. The images are a series of source image , to be processed, with names ******.tif  of level 1
+     * inputDirSegmentation is the corresponding directory : for each image ****.tif in inputSource, there is a corresponding image Segmentation_******.tif of level 1 subsampled 8
+     * outputDir is an empty directory (verified at running time)
+     * 
+     * Outputs :
+     * For each image of inputDirSource, one directory containing one image (boxSize X boxSize) per vessel and a Csv summary
+     * */
+    public static void extractVessels(String inputDirSource, String inputDirSegmentation,String outputDir) {
     	
     	//General parameters of the function
     	int resampleFactor = 8;
     	int boxSize = 200 ;
     	
-    	// Creating an arraylist to store the bounding boxes coordinates and later save them in a .csv
-    	ArrayList<String[]> csvCoordinates = new ArrayList<String[]>();
-    	String[] amorce = {"Sample", "Origin Image", "Vaisseau#", "Xbase", "Ybase", "dX", "dY"};
-    	csvCoordinates.add(amorce);
     	    	
     	// Indicating input dir (*.tif source images and associated masks) and output dir (*.tif images)
-    	if(inputDirectory==null) inputDirectory="D:/DONNEES/Test/Step2_Input/";
-    	if(outputDirectory==null) outputDirectory="D:/DONNEES/Test/Step2_Output/";    	
+    	if(inputDirSource==null) inputDirSource="D:/DONNEES/Test/Step2_InputSource/";
+    	if(inputDirSegmentation==null) inputDirSegmentation="D:/DONNEES/Test/Step2_InputSegmentation/";
+    	if(outputDir==null) outputDir="D:/DONNEES/Test/Step2_Output/";    	
     			
-    	// Load segmented data from first ML step
-    	//TODO : make a list of all images present in the input directory and make the loop go through them avec get.filelist
-    	ImagePlus mask = IJ.openImage(inputDirectory+"Mask_Img_insight_15_2.tif");
-    	ImagePlus source = IJ.openImage(inputDirectory+"Source_Img_insight_15_2.jpg");
-    			
-    	// Load segmented image and transform in ROI[]
-    	Roi[] vaisseauxRoiBase = SegmentationUtils.segmentationToRoi(mask);
-    					
-    	for(int i=0;i<vaisseauxRoiBase.length;i++) {
-    		// Extract centroids information and resample it for source image
-    		double[] centroid = vaisseauxRoiBase[i].getContourCentroid();
-    				
-    		int centroidXSource = (int) Math.round(centroid[0])*resampleFactor;
-    		int centroidYSource = (int) Math.round(centroid[1])*resampleFactor;
-    		
-    		// Extract vessel on source image
-    		Roi areaRoi = IJ.Roi(centroidXSource-(boxSize/2), centroidYSource-(boxSize/2), boxSize, boxSize);
-    		source.setRoi(areaRoi);
-    		ImagePlus vaisseauExtracted = source.crop();
-    		
-    		//Save the results
-    		IJ.save(vaisseauExtracted,"D:/DONNEES/Test/Step2_Output/V"+(i+1)+"_Img_insight_15_2.tif");
-    		
+    	//Loop over images
+    	String[] imgName=new File(inputDirSource).list();
+    	for(int indImg=0;indImg<imgName.length;indImg++) {    	
+	    	ImagePlus imgSource = IJ.openImage(new File(inputDirSource,imgName[indImg]).getAbsolutePath());
+    	
+	    	// Load segmented image and transform in ROI[]
+	    	ImagePlus imgSeg = IJ.openImage(new File(inputDirSegmentation,"Segmentation_"+imgName[indImg]).getAbsolutePath());    	
+	    	Roi[] vaisseauxRoiBase = SegmentationUtils.segmentationToRoi(imgSeg);
+
+	    	//If image dir does not exist, create it
+	    	String basename=VitimageUtils.withoutExtension(imgName[indImg]);
+    		if(new File(outputDir,basename).exists()) {
+    			IJ.showMessage("Warning : this file already exists. Abort. "+new File(outputDir,basename).getAbsolutePath());
+    			return;
+    		}
+	    	new File(outputDir,basename).mkdirs();
+
+	    	
+	    	// Creating an arraylist to store the bounding boxes coordinates and later save them in a .csv
+	    	ArrayList<String[]> csvCoordinates = new ArrayList<String[]>();
+	    	String[] amorce = {"Sample", "Origin Image", "Vaisseau#", "Xbase", "Ybase", "dX", "dY"};
+	    	csvCoordinates.add(amorce);
+    	
+	    	for(int i=0;i<vaisseauxRoiBase.length;i++) {
+	    		// Extract centroids information and resample it for source image
+	    		double[] centroid = vaisseauxRoiBase[i].getContourCentroid();		
+	    		int centroidXSource = (int) Math.round(centroid[0])*resampleFactor;
+	    		int centroidYSource = (int) Math.round(centroid[1])*resampleFactor;
+	    		
+	    		// Extract vessel on source image
+	    		Roi areaRoi = IJ.Roi(centroidXSource-(boxSize/2), centroidYSource-(boxSize/2), boxSize, boxSize);
+	    		imgSource.setRoi(areaRoi);
+	    		ImagePlus vaisseauExtracted = imgSource.crop();
+	    		
+	    		//Save the results
+	    		IJ.save(vaisseauExtracted,new File(outputDir,"V"+(i+1)+"_"+imgName[indImg]).getAbsolutePath());	    	
+	    		
+	    		//Add a line to the CSV file of this image
+	    		csvCoordinates.add( new String[]{ 
+	    				basename,new File(inputDirSource,imgName[indImg]).getAbsolutePath(),
+	    				""+(i+1),""+(centroidXSource-(boxSize/2)),
+	    				""+ (centroidYSource-(boxSize/2)),""+ boxSize, ""+boxSize
+				} );
+	    	}
     	}
     			
     }
