@@ -39,6 +39,7 @@ public class ScriptMathieu extends PlugInFrame{
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
 		listImgToProcess("D:/DONNEES/Sorgho_BFF/NDPI/2017/Recap_echantillons.csv", "D:/DONNEES/Sorgho_BFF/NDPI/2017/", "D:/DONNEES/Sorgho_BFF/ML1/");
+	
 	}
 	
 	
@@ -106,9 +107,8 @@ public class ScriptMathieu extends PlugInFrame{
     	IJ.log(finalSheet.size()*100.0/(baseSheet.length-2)+"% of the images are usable.");	
     	
 		// Loop over the selected input ndpi's
-		//for(int j=0;j<finalTab.length;j++) {
-    	for(int j=0;j<10;j++) {
-			String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
+		for(int j=0;j<finalTab.length;j++) {
+    		String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
 			IJ.log("Processing extraction of image #"+(j+1)+" / "+(finalTab.length)+" : "+finalTab[j][4]);
 
 			// Compute NDPI preview and set parameters for extraction
@@ -131,7 +131,8 @@ public class ScriptMathieu extends PlugInFrame{
 			}
 	    	
 	    	// Drawing a bounding box (divisible by 16 for later resampling) around the image to limit the amount of pixel that will be treated after
-	    	ImagePlus dup = preview.duplicate();
+	    	
+	    	/*ImagePlus dup = preview.duplicate();
     		IJ.run(dup, "8-bit", "");
     		IJ.setThreshold(140, 255);//Roughly get out the white part of the image
     		IJ.run(dup, "Convert to Mask", "");
@@ -142,22 +143,21 @@ public class ScriptMathieu extends PlugInFrame{
 	    	preview.setRoi(sampleRoi);
 	    	IJ.run(preview, "Enlarge...", "enlarge=2 pixel");
 	    	IJ.run(preview, "To Bounding Box", "");
-	    	Roi boundingBox = preview.getRoi();
+	    	Roi boundingBox = preview.getRoi();*/
 	    	
-	    	double x0=boundingBox.getXBase();
-	    	double y0=boundingBox.getYBase();
-	    	double dx=boundingBox.getFloatWidth();
-	    	double dy=boundingBox.getFloatHeight();
+	    	double x0=areaRoi.getXBase();
+	    	double y0=areaRoi.getYBase();
+	    	double dx=areaRoi.getFloatWidth();
+	    	double dy=areaRoi.getFloatHeight();
 			
 			while(dx % 16 != 0) {
-				dx++;
+				dx--;
 			}
 			while(dy % 16 != 0) {
-				dy++;
+				dy--;
 			}
 	    	
 			ImagePlus img = PluginRectangleExtract.runHeadlessFromImagePlus(preview, 1, x0, y0, dx, dy);
-			rm.close();
 			preview.close();
 	    	img.hide();
 	    	
@@ -179,7 +179,7 @@ public class ScriptMathieu extends PlugInFrame{
 		}
 	
 		// Save the coordinates in .csv form
-		String csv = outputDirectory+"Summary_coordinatesFromPreview.csv";	
+		String csv = outputDirectory+finalTab[1][0]+"_Summary_coordinatesFromPreview.csv";	
 		String [][] finalCoordinates = csvCoordinates.toArray(new String[csvCoordinates.size()][2]);	
 		writeStringTabInExcelFile(finalCoordinates, csv);
 		System.out.println(csv+" saved.");
