@@ -39,7 +39,6 @@ public class ScriptMathieu extends PlugInFrame{
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
 		listImgToProcess("D:/DONNEES/Sorgho_BFF/NDPI/2017/Recap_echantillons.csv", "D:/DONNEES/Sorgho_BFF/NDPI/2017/", "D:/DONNEES/Sorgho_BFF/ML1/");
-	
 	}
 	
 	
@@ -47,7 +46,7 @@ public class ScriptMathieu extends PlugInFrame{
         return Scaler.resize(img, targetX,targetY, targetZ, " interpolation=Bilinear average create"); 		
 	}
 	
-	public static void writeStringTabInExcelFile(String[][]tab,String fileName) {
+/*	public static void writeStringTabInExcelFile(String[][]tab,String fileName) {
 		System.out.println("Impression de tableau de taille "+tab.length+" x "+tab[0].length);
 		try { 
 			PrintStream l_out = new PrintStream(new FileOutputStream(fileName)); 
@@ -64,7 +63,7 @@ public class ScriptMathieu extends PlugInFrame{
 			l_out=null; 
 		} 
 		catch(Exception e){System.out.println(e.toString());} 
-	}
+	}*/
 	
 	public static void testListImgToProcess() {
 		//listImgToProcess(null,null,null);
@@ -97,7 +96,7 @@ public class ScriptMathieu extends PlugInFrame{
     	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
 
     	for(int i=2;i<baseSheet.length;i++) {
-    		if(baseSheet[i][11].equals("")) {
+    		if(baseSheet[i][11].equals("")) {//Image to be saved. If bad image, there is a marker in this case
     			String[] intermediarySheet = {baseSheet[i][0],baseSheet[i][1],baseSheet[i][2],baseSheet[i][3],baseSheet[i][4],baseSheet[i][6]};
     			finalSheet.add(intermediarySheet);
      		}
@@ -113,7 +112,7 @@ public class ScriptMathieu extends PlugInFrame{
 
 			// Compute NDPI preview and set parameters for extraction
 			ImagePlus preview = PluginOpenPreview.runHeadlessAndGetImagePlus(fileIn);
-	    	String nameImgOut = finalTab[j][0]+"_"+finalTab[j][1]+"_"+finalTab[j][2]+"_"+finalTab[j][3];
+	    	String nameImgOut = finalTab[j][0]+"_"+finalTab[j][1]+"_"+finalTab[j][2]+"_"+finalTab[j][3];//Name uniformization
 	    	int targetHeight = preview.getHeight();
 	    	int targetWidth = preview.getWidth();
 	    	preview.show();
@@ -181,7 +180,7 @@ public class ScriptMathieu extends PlugInFrame{
 		// Save the coordinates in .csv form
 		String csv = outputDirectory+finalTab[1][0]+"_Summary_coordinatesFromPreview.csv";	
 		String [][] finalCoordinates = csvCoordinates.toArray(new String[csvCoordinates.size()][2]);	
-		writeStringTabInExcelFile(finalCoordinates, csv);
+		VitimageUtils.writeStringTabInCsv(finalCoordinates, csv);
 		System.out.println(csv+" saved.");
 	
 		IJ.log("THE END");
