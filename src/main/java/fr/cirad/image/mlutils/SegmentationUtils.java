@@ -556,7 +556,7 @@ public class SegmentationUtils {
     }
            
     
-    public static WekaSegmentation[]initModels(int []classifierParams,boolean[]enableFeatures,String []modelPaths){
+    public static WekaSegmentation[]initModels(ImagePlus imgTest,int []classifierParams,boolean[]enableFeatures,String []modelPaths){
   	    IJ.log("weka set params  ");
 	    int numTrees=classifierParams[0];
 	    int numFeatures=classifierParams[1];
@@ -567,7 +567,7 @@ public class SegmentationUtils {
 	    
 	    WekaSegmentation []wekas=new WekaSegmentation[modelPaths.length];
 	    for(int w=0;w<wekas.length;w++) {
-	    	wekas[w]= new WekaSegmentation();
+	    	wekas[w]= new WekaSegmentation(imgTest);
 	        IJ.log("weka set features  ");
 	        // Classifier
 	        FastRandomForest rf = new FastRandomForest();
@@ -592,13 +592,14 @@ public class SegmentationUtils {
     }
     
  	public static void batchVesselSegmentation(String vesselsDir,String inputDir,String outputDir) {
- 		int batchSize=12;
  		String[]imgNames=new File(inputDir).list();
+ 		ImagePlus imgTest=IJ.openImage(new File(inputDir,imgNames[0]).getAbsolutePath());
+ 		IJ.run(imgTest,"8-bit","");
  		String[]modelPaths=new String[6];
  		for(int i=0;i<6;i++) {
  			modelPaths[i]=vesselsDir+"/Data/Processing/Step_01_detection/Models/model_layer_1"+("_AUGSET"+i+".model");
  		}
- 		WekaSegmentation[]wekas=SegmentationUtils.initModels(SegmentationUtils.getStandardRandomForestParams(1), SegmentationUtils.getStandardRandomForestFeatures(), modelPaths);
+ 		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParams(1), SegmentationUtils.getStandardRandomForestFeatures(), modelPaths);
 
  		IJ.log("Starting batch processing ");        
  		Timer t= new Timer();
@@ -614,12 +615,13 @@ public class SegmentationUtils {
  				results[m]=wekas[m].applyClassifier(img,0,true);
  			}
  			ImagePlus result=VitimageUtils.meanOfImageArray(results);
+ 			result=new Duplicator().run(result,2,2,1,1,1,1);
  			results=null;
  			VitimageUtils.garbageCollector();
  			IJ.save(result, new File(outputDir,"ProbaMap_"+imgNames[indImg]).getAbsolutePath());
  			t.print("Starting segmentation image "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
  			ImagePlus binary=SegmentationUtils.getSegmentationFromProbaMap3D(result,0.5,0.7);
- 			IJ.save(result, new File(outputDir,"Segmentation_"+imgNames[indImg]).getAbsolutePath());
+ 			IJ.save(binary, new File(outputDir,"Segmentation_"+imgNames[indImg]).getAbsolutePath());
  		}
  	}        
 

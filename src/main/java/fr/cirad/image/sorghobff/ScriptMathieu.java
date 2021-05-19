@@ -169,17 +169,12 @@ public class ScriptMathieu extends PlugInFrame{
 	        img=null;
 	        IJ.log(fileIn+" converted.");
 	        
-	        String xBase = String.valueOf(x0);
-	        String yBase = String.valueOf(y0);
-	        String width = String.valueOf(dx);
-	        String height = String.valueOf(dy);
-	        String[] coordinates = {nameImgOut, fileIn, xBase, yBase, width, height};
-	        csvCoordinates.add(coordinates);
+	        csvCoordinates.add( new String[]{ nameImgOut,fileIn,""+x0,""+y0,""+dx,""+dy } );
 		}
 	
 		// Save the coordinates in .csv form
 		String csv = outputDirectory+finalTab[1][0]+"_Summary_coordinatesFromPreview.csv";	
-		String [][] finalCoordinates = csvCoordinates.toArray(new String[csvCoordinates.size()][2]);	
+		String [][] finalCoordinates = csvCoordinates.toArray( new String[csvCoordinates.size()][2] );
 		VitimageUtils.writeStringTabInCsv(finalCoordinates, csv);
 		System.out.println(csv+" saved.");
 	
