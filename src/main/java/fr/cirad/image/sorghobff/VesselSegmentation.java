@@ -167,7 +167,7 @@ public class VesselSegmentation extends PlugInFrame{
         }
         
         
- 	
+	        
 		public static void step_04_measure_scores(String dataType,boolean multiModel) {
 			boolean verbose=false;
         	if(  (!dataType.equals("training") ) && (!dataType.equals("validate") ) &&(!dataType.equals("test") ) ) {
@@ -178,8 +178,8 @@ public class VesselSegmentation extends PlugInFrame{
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Stack_annotations.tif");
 			 ImagePlus []res=new ImagePlus[100];
 			 int incr=0;
-            for(double d1=0.5;d1<=0.5;d1+=0.1){
-                for(double d2=0.6;d2<=0.85;d2+=0.05){
+			 for(double d1=0.5;d1<=0.5;d1+=0.1){
+                for(double d2=0.7;d2<=0.7;d2+=0.05){
             	System.out.println("\n "+d1+"  -  "+d2);
                 ImagePlus binValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba"+(multiModel ? "_multimodel" : "_STEP0")+".tif");
             	ImagePlus binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binValT,d1,d2);
