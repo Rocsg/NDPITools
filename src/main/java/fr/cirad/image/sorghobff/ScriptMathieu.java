@@ -65,11 +65,14 @@ public class ScriptMathieu extends PlugInFrame{
 		catch(Exception e){System.out.println(e.toString());} 
 	}
 	
-
 	public static void testListImgToProcess() {
 		//listImgToProcess(null,null,null);
 		extractVessels(null, null);
 	}
+	
+	
+	
+	
 	
 	/**  ---------------------------------------- Test functions -----------------------------------------------*/
     public static void listImgToProcess(String csvPath, String inputDirectory, String outputDirectory) {    	
@@ -89,7 +92,7 @@ public class ScriptMathieu extends PlugInFrame{
 
     	//Extracting useful data from the CSV - Year/Genotype/Plant/Node/File name/which slice to chose
     	if(csvPath==null) csvPath ="D:/DONNEES/Recap_echantillons_2017_test.csv"; //Summary CSV file
-    	String [][]baseSheet = SegmentationUtils.readStringTabFromCsv(csvPath);
+    	String [][]baseSheet = VitimageUtils.readStringTabFromCsv(csvPath);
     	ArrayList<String[]> finalSheet = new ArrayList<String[]>();
 
     	for(int i=2;i<baseSheet.length;i++) {
