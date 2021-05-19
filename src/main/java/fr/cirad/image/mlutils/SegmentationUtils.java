@@ -19,7 +19,7 @@ import fr.cirad.image.common.VitiDialogs;
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.hyperweka.HyperWekaSegmentation;
 import fr.cirad.image.registration.ItkTransform;
-
+import fr.cirad.image.sorghobff.ScriptMathieu;
 import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
 import ij.ImagePlus;
@@ -29,6 +29,7 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 import ij.plugin.Duplicator;
+import ij.plugin.Scaler;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
@@ -1084,7 +1085,58 @@ public class SegmentationUtils {
             ImagePlus imgMaskFull=VitimageUtils.slicesToStack(imgMask);
             return new ImagePlus[] {imgInitFull,imgMaskFull};
     }
-                    
+  
+    public static void jsonToBinarySlices(String dirSourceIn,String dirSourceOut,String dirSegOut) {
+        System.out.println(dirSourceIn);
+        
+        String[]listFiles=new File(dirSourceIn).list();
+        System.out.println(listFiles.length);
+        int nImgs=listFiles.length-1;
+        String s="";
+        for(String s2 : listFiles) {
+            if(s2.contains(".json"))s=s2;
+        }
+        
+        String[][][] tabData=convertJsonToRoi(new File(dirSourceIn,s).getAbsolutePath());
+        ImagePlus[]imgInit=new ImagePlus[nImgs];
+        ImagePlus[]imgMask=new ImagePlus[nImgs];
+        
+        for(int indImg=0;indImg<tabData.length;indImg++) {
+                System.out.println("Opening image "+new File(dirSourceIn,tabData[indImg][0][0]).getAbsolutePath());
+                imgInit[indImg]=IJ.openImage(new File(dirSourceIn,tabData[indImg][0][0]).getAbsolutePath());
+                IJ.saveAsTiff(imgInit[indImg], new File(dirSourceOut,VitimageUtils.withoutExtension(tabData[indImg][0][0])+".tif").getAbsolutePath());
+                imgMask[indImg]=imgInit[indImg].duplicate();
+                IJ.run(imgMask[indImg],"8-bit","");
+                imgMask[indImg]=VitimageUtils.nullImage(imgMask[indImg]);
+                imgMask[indImg].show();
+                for(int indRoi=0;indRoi<tabData[indImg].length;indRoi++) {
+                        Roi r=roiParser(tabData[indImg][indRoi][1],tabData[indImg][indRoi][2]);
+                        imgMask[indImg].setRoi(r);
+                        IJ.run("Fill", "slice");
+                }
+                imgMask[indImg].hide();
+                ImagePlus img= imgMask[indImg].duplicate();
+                VitimageUtils.printImageResume(img);
+//                img.show();
+                imgMask[indImg]=resizeNearest(img, img.getWidth()/8,img.getHeight()/8,1);
+                imgMask[indImg]=VitimageUtils.thresholdByteImage(imgMask[indImg], 127, 256);
+                System.out.println("resize(img,"+ img.getWidth()/8+","+img.getHeight()/8+",1)");
+                ImagePlus img2= imgMask[indImg].duplicate();
+                VitimageUtils.printImageResume(imgMask[indImg]);
+ //               img2.show();
+  //              VitimageUtils.waitFor(100000);
+                IJ.save(imgMask[indImg], new File(dirSegOut,"Segmentation_"+VitimageUtils.withoutExtension(tabData[indImg][0][0])+".tif").getAbsolutePath());
+        }
+    }
+
+	public static ImagePlus resize(ImagePlus img, int targetX,int targetY,int targetZ) {
+        return Scaler.resize(img, targetX,targetY, targetZ, " interpolation=Bilinear average create"); 		
+	}
+	public static ImagePlus resizeNearest(ImagePlus img, int targetX,int targetY,int targetZ) {
+        return Scaler.resize(img, targetX,targetY, targetZ, "none"); 		
+	}
+
+    
     public static String[][][]convertJsonToRoi(String jsonPath){
             String bag="val";
             String conf="2048";
