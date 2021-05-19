@@ -185,7 +185,7 @@ public class ScriptMathieu extends PlugInFrame{
     	
     	//General parameters of the function
     	int resampleFactor = 8;
-    	int boxSize = 200;
+    	int boxSize = 200 ;
     	
     	// Creating an arraylist to store the bounding boxes coordinates and later save them in a .csv
     	ArrayList<String[]> csvCoordinates = new ArrayList<String[]>();
