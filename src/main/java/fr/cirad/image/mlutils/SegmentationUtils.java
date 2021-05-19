@@ -13,7 +13,6 @@ import ij.plugin.ChannelSplitter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import com.opencsv.CSVReader;
 
 import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.VitiDialogs;
@@ -42,7 +41,7 @@ public class SegmentationUtils {
     
 	
 	public static void testReadCsv() {
-		String[][]tab=readStringTabFromCsv("/home/rfernandez/Téléchargements/Recap_echantillons.xlsx - Image_inventory_2019_T1_WW.csv");
+		String[][]tab=VitimageUtils.readStringTabFromCsv("/home/rfernandez/Téléchargements/Recap_echantillons.xlsx - Image_inventory_2019_T1_WW.csv");
 		for(int i=2;i<tab.length;i++) {//From i=2 because two first lines are not images
 			//For each line
 			System.out.println("Line "+i+" =");
@@ -62,21 +61,6 @@ public class SegmentationUtils {
 		}
 	}
 	
-	public static String[][]readStringTabFromCsv(String csvPath){
-	    try {
-	    	CSVReader reader = new CSVReader(new FileReader(csvPath)); 
-			java.util.List<String[]> r = reader.readAll();
-			String[][]ret=new String[r.size()][];
-			int Nmax=0;
-			for(int index=0;index<r.size();index++)ret[index]=r.get(index);
-			return ret;
-	    }
-	    catch(Exception e) {
-	    	System.out.println("Got an exception during opening "+csvPath);
-    	}
-	    return null;
-}
-
 	
 	
 	
