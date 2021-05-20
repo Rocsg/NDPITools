@@ -236,7 +236,6 @@ public class ScriptMathieu extends PlugInFrame{
 	    		double[] centroid = vaisseauxRoiBase[i].getContourCentroid();		
 	    		int centroidXSource = (int) Math.round(centroid[0]*resampleFactor);
 	    		int centroidYSource = (int) Math.round(centroid[1]*resampleFactor);
-	    		System.out.println(" "+centroidXSource+" , "+centroidYSource);
 	    		// Extract vessel on source image
 
 	    		//verify box enters in the image
@@ -247,7 +246,6 @@ public class ScriptMathieu extends PlugInFrame{
 	    		if(y0<boxSize/2)y0=boxSize/2;
 	    		if(x0>=(imgSource.getWidth()-boxSize/2))x0=imgSource.getWidth()-boxSize/2;
 	    		if(y0>=(imgSource.getHeight()-boxSize/2))y0=imgSource.getHeight()-boxSize/2;
-	    		System.out.println( (x0-(boxSize/2))+"|"+(y0-(boxSize/2))+"|"+boxSize+"|"+boxSize);
 	    		
 	    		Roi areaRoi = IJ.Roi(x0-(boxSize/2), y0-(boxSize/2), boxSize, boxSize);
 	    		imgSource.setRoi(areaRoi);
@@ -255,7 +253,7 @@ public class ScriptMathieu extends PlugInFrame{
 	    		int X=vaisseauExtracted.getWidth();
 	    		int Y=vaisseauExtracted.getHeight();
 	    		if(X!=200 || Y!=200) {
-	    			System.out.println("Erreur ! "+X+" , "+Y);
+	    			IJ.showMessage("Erreur in ScriptMathieu extractVessels! "+X+" , "+Y);
 	    			VitimageUtils.waitFor(100000);
 	    		}
 	    		//Save the results
