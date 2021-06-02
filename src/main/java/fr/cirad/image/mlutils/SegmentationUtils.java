@@ -537,6 +537,25 @@ public class SegmentationUtils {
 		IJ.run(temp,"8-bit","");
 		return temp;
 	}
+	public static ImagePlus drawRectangleInRGBImage(ImagePlus imgIn,int x0,int y0,int wid,int hei,int z,Color col) {
+		if(imgIn.getType() != ImagePlus.COLOR_RGB)return imgIn;
+		ImagePlus img=new Duplicator().run(imgIn);
+		int xM=img.getWidth();
+		int yM=img.getHeight();
+		if(x0<0 || y0<0 || (x0+wid)>=xM || (y0+hei)>=yM )return imgIn;
+		byte[][] valsImg=new byte[3][];
+		ImagePlus[]chans=VitimageUtils.splitRGBStackHeadLess(imgIn);
+		for(int c=0;c<3;c++) {
+			int val= c==0 ? col.getRed() : c==1 ? col.getGreen() : col.getBlue();
+			valsImg[c]=(byte [])chans[c].getStack().getProcessor(z+1).getPixels();
+			for(int x=x0;x<=x0+wid;x++) {
+				for(int y=y0;y<=y0+hei;y++) {
+					valsImg[c][xM*y+x]=  (byte)( ((byte)val) & 0xff);
+				}
+			}
+		}			
+		return VitimageUtils.compositeRGBByteTab(chans);
+	}
 
 	
     /** Weka train and apply model --------------------------------------------------------------------------------------------*/        

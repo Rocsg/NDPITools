@@ -406,9 +406,9 @@ public class VesselSegmentation extends PlugInFrame{
 											SegmentationUtils.getMassCenter(new Duplicator().run(xylemSeg,1,1,z+1,z+1,1,1)), 
 											SegmentationUtils.getMassCenter(new Duplicator().run(phloemSeg,1,1,z+1,z+1,1,1))};
 			
-			resCenter=VitimageUtils.drawRectangleInRGBImage(resCenter,(int)centers[0][0]-3,(int)centers[0][1]-1,2,2,z,Color.pink);
-			resCenter=VitimageUtils.drawRectangleInRGBImage(resCenter,(int)centers[1][0]-3,(int)centers[1][1]-1,2,2,z,Color.yellow);
-			resCenter=VitimageUtils.drawRectangleInRGBImage(resCenter,(int)centers[2][0]-3,(int)centers[2][1]-1,2,2,z,Color.green);
+			resCenter=SegmentationUtils.drawRectangleInRGBImage(resCenter,(int)centers[0][0]-3,(int)centers[0][1]-1,2,2,z,Color.pink);
+			resCenter=SegmentationUtils.drawRectangleInRGBImage(resCenter,(int)centers[1][0]-3,(int)centers[1][1]-1,2,2,z,Color.yellow);
+			resCenter=SegmentationUtils.drawRectangleInRGBImage(resCenter,(int)centers[2][0]-3,(int)centers[2][1]-1,2,2,z,Color.green);
 
 
 		}
