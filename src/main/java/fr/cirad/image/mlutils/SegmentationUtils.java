@@ -553,7 +553,7 @@ public class SegmentationUtils {
 	   Runtime. getRuntime(). gc();
         long startTime = System.currentTimeMillis();
         WekaSegmentation seg = new WekaSegmentation(img);
-
+ 
         // Classifier
         FastRandomForest rf = new FastRandomForest();
         rf.setNumTrees(numTrees);                  
