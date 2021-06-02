@@ -63,7 +63,7 @@ public class ScriptMathieu extends PlugInFrame{
 	
 	public static void testListImgToProcess() {
 		//listImgToProcess(null,null,null);
-		extractVessels(null, null,null);
+		extractVessels(null, null,null,8);
 	}
 	
 	
@@ -141,8 +141,8 @@ public class ScriptMathieu extends PlugInFrame{
 	    	
 	    	double x0=areaRoi.getXBase();
 	    	double y0=areaRoi.getYBase();
-	    	double dx=areaRoi.getFloatWidth();
-	    	double dy=areaRoi.getFloatHeight();
+	    	int dx=(int) Math.round(areaRoi.getFloatWidth());
+	    	int dy=(int) Math.round(areaRoi.getFloatHeight());
 			
 			while(dx % 16 != 0) {
 				dx--;
@@ -194,34 +194,35 @@ public class ScriptMathieu extends PlugInFrame{
      * Outputs :
      * For each image of inputDirSource, one directory containing one image (boxSize X boxSize) per vessel and a Csv summary
      * */
-    public static void extractVessels(String inputDirSource, String inputDirSegmentation,String outputDir) {
+    public static void extractVessels(String inputDirSource, String inputDirSegmentation,String outputDir,int resampleFactor) {
     	
     	//General parameters of the function
-    	int resampleFactor = 8;
     	int boxSize = 200 ;
-    	
     	    	
     	// Indicating input dir (*.tif source images and associated masks) and output dir (*.tif images)
     	if(inputDirSource==null) inputDirSource="D:/DONNEES/Test/Step2_InputSource/";
     	if(inputDirSegmentation==null) inputDirSegmentation="D:/DONNEES/Test/Step2_InputSegmentation/";
-    	if(outputDir==null) outputDir="D:/DONNEES/Test/Step2_Output/";    	
-    			
+    	if(outputDir==null) outputDir="D:/DONNEES/Test/Step2_Output/";  
+    	String outputDirSource=new String(outputDir);
+    	String outputDirBin=new String(outputDir).replace("source", "binary");
+    	
     	//Loop over images
     	String[] imgName=new File(inputDirSource).list(getFileNameFilterToExcludeCsvAndJsonFiles ());
     	for(int indImg=0;indImg<imgName.length;indImg++) {    
     		System.out.println("Processing "+(indImg+1)+"/"+(imgName.length)+" : "+imgName[indImg]);
 	    	ImagePlus imgSource = IJ.openImage(new File(inputDirSource,imgName[indImg]).getAbsolutePath());
-    	
+	    	boolean debug =false;
+	    	if(imgName[indImg].contains("Img_insight_08_2")){
+	    		System.out.println("DEBUG MODE");
+	    		debug=true;
+	    	}
 	    	// Load segmented image and transform in ROI[]
 	    	ImagePlus imgSeg = IJ.openImage(new File(inputDirSegmentation,"Segmentation_"+imgName[indImg]).getAbsolutePath());    	
 	    	Roi[] vaisseauxRoiBase = SegmentationUtils.segmentationToRoi(imgSeg);
 	    	//If image dir does not exist, create it
 	    	String basename=VitimageUtils.withoutExtension(imgName[indImg]);
-    		if(new File(outputDir,basename).exists()) {
-    			IJ.showMessage("Warning : this file already exists. Abort. "+new File(outputDir,basename).getAbsolutePath());
-    			return;
-    		}
-	    	new File(outputDir,basename).mkdirs();
+	    	new File(outputDirSource,basename).mkdirs();
+	    	new File(outputDirBin,basename).mkdirs();
 
 	    	
 	    	// Creating an arraylist to store the bounding boxes coordinates and later save them in a .csv
@@ -230,7 +231,7 @@ public class ScriptMathieu extends PlugInFrame{
 	    	csvCoordinates.add(amorce);
     	
 	    	for(int i=0;i<vaisseauxRoiBase.length;i++) {
-	    		System.out.println("Roi "+i);
+	    		if(debug)System.out.println("Roi "+i);
 
 	    		// Extract centroids information and resample it for source image
 	    		double[] centroid = vaisseauxRoiBase[i].getContourCentroid();		
@@ -250,6 +251,8 @@ public class ScriptMathieu extends PlugInFrame{
 	    		Roi areaRoi = IJ.Roi(x0-(boxSize/2), y0-(boxSize/2), boxSize, boxSize);
 	    		imgSource.setRoi(areaRoi);
 	    		ImagePlus vaisseauExtracted = imgSource.crop();
+	    		imgSeg.setRoi(areaRoi);
+	    		ImagePlus binVaiss=imgSeg.crop();
 	    		int X=vaisseauExtracted.getWidth();
 	    		int Y=vaisseauExtracted.getHeight();
 	    		if(X!=200 || Y!=200) {
@@ -257,16 +260,19 @@ public class ScriptMathieu extends PlugInFrame{
 	    			VitimageUtils.waitFor(100000);
 	    		}
 	    		//Save the results
-	    		IJ.save(vaisseauExtracted,new File(outputDir,basename+"/V"+(i+1)+"_"+imgName[indImg]).getAbsolutePath());	    	
+	    		IJ.save(vaisseauExtracted,new File(outputDirSource,basename+"/V"+(i+1)+"_"+imgName[indImg]).getAbsolutePath());	    	
+	    		IJ.save(binVaiss,new File(outputDirBin,basename+"/V"+(i+1)+"_"+imgName[indImg]).getAbsolutePath());	    	
+	    		if(debug)System.out.println("SAVED "+new File(outputDirBin,basename+"/V"+(i+1)+"_"+imgName[indImg]).getAbsolutePath());
 	    		
 	    		//Add a line to the CSV file of this image
 	    		csvCoordinates.add( new String[]{ 
 	    				basename,
-	    				""+(i+1),""+(centroidXSource-(boxSize/2)),
-	    				""+ (centroidYSource-(boxSize/2)),""+ boxSize, ""+boxSize,new File(inputDirSource,imgName[indImg]).getAbsolutePath(),
+	    				""+(i+1),""+(x0-(boxSize/2)),
+	    				""+ (y0-(boxSize/2)),""+ boxSize, ""+boxSize,new File(inputDirSource,imgName[indImg]).getAbsolutePath(),
 				} );
 	    	}
-    		VitimageUtils.writeStringTabInCsv(csvCoordinates.toArray( new String[csvCoordinates.size()][csvCoordinates.get(0).length]), new File(outputDir,basename+"/"+basename+".csv").getAbsolutePath());
+    		VitimageUtils.writeStringTabInCsv(csvCoordinates.toArray( new String[csvCoordinates.size()][csvCoordinates.get(0).length]), new File(outputDirSource,basename+"/"+basename+".csv").getAbsolutePath());
+    		VitimageUtils.writeStringTabInCsv(csvCoordinates.toArray( new String[csvCoordinates.size()][csvCoordinates.get(0).length]), new File(outputDirBin,basename+"/"+basename+".csv").getAbsolutePath());
     	}
     			
     }
