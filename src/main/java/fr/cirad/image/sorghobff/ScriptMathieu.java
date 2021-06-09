@@ -101,8 +101,15 @@ public class ScriptMathieu extends PlugInFrame{
     	IJ.log(finalSheet.size()*100.0/(baseSheet.length-2)+"% of the images are usable.");	
     	
 		// Loop over the selected input ndpi's
-		for(int j=0;j<finalTab.length;j++) {
-    		String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();			
+    	ArrayList<String[]> errors = new ArrayList<String[]>();
+    	for(int j=0;j<finalTab.length;j++) {
+    		String fileIn=new File(inputDirectory,finalTab[j][4]).getAbsolutePath();
+    		if(! new File(fileIn).exists()) {
+    			//Garder l'info de coté
+    			errors.add(new String[] {" "+j,finalTab[j][4]});
+    			continue;
+    		}
+    		
 			IJ.log("Processing extraction of image #"+(j+1)+" / "+(finalTab.length)+" : "+finalTab[j][4]);
 
 			// Compute NDPI preview and set parameters for extraction
@@ -166,6 +173,9 @@ public class ScriptMathieu extends PlugInFrame{
 	        
 	        csvCoordinates.add( new String[]{ nameImgOut,fileIn,""+x0,""+y0,""+dx,""+dy } );
 		}
+    	String [][] finalErrors = errors.toArray( new String[errors.size()][2] );
+		VitimageUtils.writeStringTabInCsv(finalErrors, "C://");
+		
 	
 		// Save the coordinates in .csv form
 		String csv = outputDirectory+finalTab[1][0]+"_Summary_coordinatesFromPreview.csv";	
