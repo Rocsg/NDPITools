@@ -37,7 +37,7 @@ public class ScriptMathieu extends PlugInFrame{
 	
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
-		listImgToProcess("D:/DONNEES/Sorgho_BFF/NDPI/2017/Recap_echantillons.csv", "D:/DONNEES/Sorgho_BFF/NDPI/2017/", "D:/DONNEES/Sorgho_BFF/ML1/");
+		listImgToProcess("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2017/Raw/Recap_echantillons.csv", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2017/Raw/", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/");
 	}
 	
 	
