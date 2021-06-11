@@ -30,14 +30,16 @@ public class ScriptMathieu extends PlugInFrame{
     
 	//This method is entry point when testing from Eclipse
     public static void main(String[] args) {
-		@SuppressWarnings("unused")
-		ImageJ ij=new ImageJ();	
-		new ScriptMathieu().run("");
+		//@SuppressWarnings("unused")
+		//ImageJ ij=new ImageJ();	
+		//new ScriptMathieu().run("");
+    	Matthieu_BatchProcessing.batchVesselSegmentation(null, null, null);
+
     }
 	
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
-		listImgToProcess("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2017/Raw/Recap_echantillons.csv", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2017/Raw/", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/");
+		//listImgToProcess("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2018/Raw/Recap_echantillons.csv", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2018/Raw/", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/");
 	}
 	
 	
@@ -127,6 +129,9 @@ public class ScriptMathieu extends PlugInFrame{
 	    	else if(finalTab[j][5].equals("D")) {// The interesting data is on the right part of the image
 	    		areaRoi = IJ.Roi(targetWidth/2, 0, targetWidth-targetWidth/2, targetHeight);
 			}
+	    	else if(finalTab[j][5].equals("M")) {// The interesting data is in the middle of the image
+	    		areaRoi = IJ.Roi(targetWidth/3, 0, targetWidth-targetWidth/3, targetHeight);
+	    	}
 	    	else{		
 	    		areaRoi = IJ.Roi(0, 0, targetWidth, targetHeight);
 			}
@@ -173,15 +178,21 @@ public class ScriptMathieu extends PlugInFrame{
 	        
 	        csvCoordinates.add( new String[]{ nameImgOut,fileIn,""+x0,""+y0,""+dx,""+dy } );
 		}
-    	String [][] finalErrors = errors.toArray( new String[errors.size()][2] );
-		VitimageUtils.writeStringTabInCsv(finalErrors, "C://");
-		
-	
+    			
 		// Save the coordinates in .csv form
 		String csv = outputDirectory+finalTab[1][0]+"_Summary_coordinatesFromPreview.csv";	
 		String [][] finalCoordinates = csvCoordinates.toArray( new String[csvCoordinates.size()][2] );
 		VitimageUtils.writeStringTabInCsv(finalCoordinates, csv);
 		System.out.println(csv+" saved.");
+		
+	 	// Save a list of images that showed errors during processing
+    	String csvErrors = outputDirectory+finalTab[1][0]+"_Summary_errors.csv";
+    	if (! errors.isEmpty()) {
+    		String [][] finalErrors = errors.toArray( new String[errors.size()][2] );
+    		VitimageUtils.writeStringTabInCsv(finalErrors, csvErrors);
+    		System.out.println(csvErrors+" saved.");
+		}
+    	
 	
 		IJ.log("THE END");
     }	
