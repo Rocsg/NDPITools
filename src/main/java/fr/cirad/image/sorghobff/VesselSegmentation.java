@@ -69,12 +69,12 @@ public class VesselSegmentation extends PlugInTool{
 	public static void main(String[]args) {
         ImageJ ij=new ImageJ();
         WindowManager.closeAllWindows();
-        debugEllipsis(1, "2019_G80_P102_E14");
-        anomalyEllipsis(1,"2019_G80_P102_E14");
+       //step_C_08_segment_xylem_parts_and_identify_eyes(""+1);// debugEllipsis(1, "2019_G80_P102_E14");
+        //anomalyEllipsis(1,"2018_G01_P5_E24");//2016_G28_P3_E10   2019_G80_P102_E14  2019_G80_P63_E13
         /* for(int split=1;split<=9;split++) {
         	step_C_08_segment_xylem_parts_and_identify_eyes(""+split);
         }*/
-//		new VesselSegmentation().run("TestEclipse");
+		new VesselSegmentation().run("TestEclipse");
 	}
 
 	public void run(String arg) {
@@ -86,8 +86,8 @@ public class VesselSegmentation extends PlugInTool{
  	   //testPouet();
  	//  this.startSecondPhase();
 	   int startStep=8;
-	   int lastStep=8;
-	   String split="1";
+	   int lastStep=10;
+	   String split="all";
  	   if((arg==null) || arg.length()==0) {
  		   startStep=VitiDialogs.getIntUI("startStep", 1);
  		   lastStep=VitiDialogs.getIntUI("lastStep", 1);
@@ -153,10 +153,10 @@ public class VesselSegmentation extends PlugInTool{
 		   if(startStep<=6 && lastStep>=6) step_C_06_xyphlo_ml(split);
 		   if(startStep<=7 && lastStep>=7) step_C_07_segment_vessels_contour(split);
 		   if(startStep<=8 && lastStep>=8) step_C_08_segment_xylem_parts_and_identify_eyes(split);
-		   
+		   if(startStep<=9 && lastStep>=9)  step_C_09_anomalyEllipsis(split);
+		   if(startStep<=10 && lastStep>=10) step_C_10_generateEllipsisSlices(split);
 		   t.print("Final end of script");
     }	
-	
     
     public void step_C_chiasse() {
     	String sorghoDir= getVesselsDir();
@@ -418,9 +418,13 @@ public class VesselSegmentation extends PlugInTool{
     
     //TODO
     public static void step_C_08_segment_xylem_parts_and_identify_eyes(String strSplit) {
+    	if(strSplit.contains("all")) {
+    		for(int i=1;i<10;i++)step_C_08_segment_xylem_parts_and_identify_eyes(""+i);
+    		return;
+    	}
     	int split=Integer.parseInt(strSplit);
 //    	int waiting=1000;
-    	boolean makeImageDebug=true;
+    	boolean makeImageDebug=false;
     	boolean debug=false;
 		String sorghoDir= getVesselsDir();
     	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
@@ -701,7 +705,7 @@ public class VesselSegmentation extends PlugInTool{
 	 				combinedSeg=VitimageUtils.makeOperationOnOneImage(combinedSeg, 4, 1, false);
 	 				combinedSeg.setDisplayRange(0, 7);
 	 				combinedSegTab[indexVes-1]=combinedSeg.duplicate();
-	 				csvTab[indexVes][2]="NONVALID";csvTab[indexVes][3]="STEP8_3";
+	 				csvTab[indexVes][2]="NONVALID";csvTab[indexVes][3]=(hasPhloem ? "NoBiMeta" : "NoPhloem");
 	 			}
 
 	 			String[]header=new String[] {"ImgName","VesselIndex","InvalidFlag","Stamp","Metainfo",/*0 - 4  */
@@ -721,7 +725,8 @@ public class VesselSegmentation extends PlugInTool{
 	 			csvTab[i][1]=""+indexVes;  
 	 			double vesX=Double.parseDouble(vesselCenters[i][2]);
 	 			double vesY=Double.parseDouble(vesselCenters[i][3]);
-	 			if(VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1])>sliceCircle[2]*1.02) {csvTab[i][2]="NONVALID";csvTab[i][3]="STEP4";}
+	 			if(VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1])>sliceCircle[2]*1.02) {csvTab[i][2]="NONVALID";csvTab[i][3]="OutOfPerimeter";}
+	 			
 	 			//csvTab[i][4]="_"+vesX+"_"+vesY+"_"+sliceCircle[0]+"_"+sliceCircle[1]
 	 					//+"_RAD="+VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1]);
 
@@ -740,18 +745,33 @@ public class VesselSegmentation extends PlugInTool{
 	 			csvTab[i][13]=""+dou(ellVessel[1][1] )  ;// PA
 	 			csvTab[i][14]=""+dou(ellVessel[2][2]  ) ;// Angle
 
-	 			if(inertiaProto!=null) {
-		 			csvTab[i][15]="1";//nbPhloem 
-		 			csvTab[i][16]="2";//NbMeta
-		 			csvTab[i][17]=""+inertiaProto.length; 
-	
+	 			if(inertiaPhlo!=null) {
 		 			csvTab[i][18]=""+dou(inertiaPhlo[0][1])   ;// X Phloem
 		 			csvTab[i][19]=""+dou(inertiaPhlo[0][2])   ;// Y
 		 			csvTab[i][20]=""+dou(inertiaPhlo[2][0])   ;// Surf
 		 			csvTab[i][21]=""+dou(inertiaPhlo[1][0] )  ;// GA
 		 			csvTab[i][22]=""+dou(inertiaPhlo[1][1] )  ;// PA
 		 			csvTab[i][23]=""+dou(inertiaPhlo[2][2] )  ;// Angle
+		 			if(inertiaPhlo[2][0]<VitimageUtils.EPSILON) {csvTab[i][2]="NONVALID";csvTab[i][3]+="VoidPhloem";}
+		 			double[]posE1=new double[] {ellXylem[i1top][0][1],ellXylem[i1top][0][2],0};
+		 			double[]posE2=new double[] {ellXylem[i2top][0][1],ellXylem[i2top][0][2],0};
+		 			double[]posPhlo=new double[] {inertiaPhlo[0][1],inertiaPhlo[0][2],0};
+	 				double[]vectE2ToE1=TransformUtils.vectorialSubstraction(posE1,posE2);
+	 				double[]vectE1ToE2=TransformUtils.vectorialSubstraction(posE2,posE1);
+	 				double[]vectE1ToPhlo=TransformUtils.vectorialSubstraction(posPhlo, posE1);
+	 				double[]vectE2ToPhlo=TransformUtils.vectorialSubstraction(posPhlo, posE2);
+		 			double scalProd1=TransformUtils.scalarProduct(vectE1ToE2,vectE1ToPhlo);
+		 			double scalProd2=TransformUtils.scalarProduct(vectE2ToE1,vectE2ToPhlo);
+		 			//System.out.println("ScalProds="+scalProd1+" , "+scalProd2);
+		 			if( (scalProd1<0) || (scalProd2<0) ) {
+		 				csvTab[i][2]="NONVALID";csvTab[i][3]+="PhloemNonCentered";
+	 				}
+	 			}
+	 			csvTab[i][15]="1";//nbPhloem 
+	 			csvTab[i][16]="2";//NbMeta
 	
+	
+	 			if(ellXylem.length>=2) {
 		 			csvTab[i][24]=""+dou(ellXylem[i1top][0][1]  ) ;// X Left eye
 		 			csvTab[i][25]=""+dou(ellXylem[i1top][0][2] )  ;// Y
 		 			csvTab[i][26]=""+dou(ellXylem[i1top][2][0] )  ;// Surf
@@ -765,7 +785,10 @@ public class VesselSegmentation extends PlugInTool{
 		 			csvTab[i][33]=""+dou(ellXylem[i2top][1][0] )  ;// GA
 		 			csvTab[i][34]=""+dou(ellXylem[i2top][1][1] )  ;// PA
 		 			csvTab[i][35]=""+dou(ellXylem[i2top][2][2]  ) ;// Angle
-	
+	 			}
+ 				if(inertiaProto!=null) {
+		 			csvTab[i][17]=""+inertiaProto.length; 
+		 			
 		 			if(inertiaProto.length>0) {
 			 			csvTab[i][36]=""+dou(inertiaProto[0][0][1] )  ;// X First proto
 			 			csvTab[i][37]=""+dou(inertiaProto[0][0][2] )  ;// Y
@@ -797,82 +820,157 @@ public class VesselSegmentation extends PlugInTool{
  			IJ.saveAsTiff(VitimageUtils.slicesToStack(orientationCircleTab), new File(dataPath+"/orientation_circle.tif").getAbsolutePath());
  			IJ.saveAsTiff(VitimageUtils.slicesToStack(combinedSegTab), new File(dataPath+"/segmentation_combined.tif").getAbsolutePath());
  			VitimageUtils.writeStringTabInCsv(csvTab, new File(dataPath+"/Vessels_descriptor.csv").getAbsolutePath());
- 			ImagePlus im;
- 			if(makeImageDebug) {
- 				im=debugEllipsis(split,imgName);
- 				IJ.saveAsTiff(im, dataPath+"/Vessels_descriptor.tif");
- 			}
  		}
     }	
-    //2019_G80_P102_E14
-    //V149 a gauche. Un tout petit, avec un xyleme tres au milieu l autre tres petit, , et lui meme tres long
-    //V176 vers le milieu. Phloeme est micro, Un meta enorme, un autre tout petit. Vaisseau tres allonge
-    //V217 : confusion sens
-    //V229 : xylemes tout petits, phloeme tout petit, vaisseau tres gros
-    //V201 : phlo pas entre les deux meta
     
-    public static double dou(double d) {
-    	return VitimageUtils.dou(d);
-    }
     
-    public static String[][]pruneCsv(String[][]tab){
-    	String[][]tabRet;
-    	int nb=tab.length;
-    	for(int i=0;i<tab.length;i++) {
-    		if( (tab[i][2].contains("Invalid")) || (tab[i][2].contains("NONVALID") ) ) {
-    			nb--;
-    		}    		
+    public static void step_C_09_anomalyEllipsis(String strSplit) {
+    	if(strSplit.contains("all")) {
+    		for(int i=1;i<10;i++)step_C_09_anomalyEllipsis(""+i);
+    		return;
     	}
-    	tabRet=new String[nb][tab[0].length];
-    	nb=0;
-    	for(int i=0;i<tab.length;i++) {
-    		if( (!tab[i][2].contains("Invalid")) && (!tab[i][2].contains("NONVALID") ) ) {
-    			tabRet[nb]=tab[i];
-    			nb++;
-    		}    		
-    	}
-    	return tabRet;
+    	int split=Integer.parseInt(strSplit);
+		String sorghoDir= getVesselsDir();
+    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
+		String[]imgNames=new File(dir).list();
+		Timer t=new Timer();
+ 		for(int indImg=0;indImg<imgNames.length;indImg++) {
+ 			t.print("\nStarting anomaly detection in "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
+ 			String imgName=imgNames[indImg]; 
+ 			detectAnomalyEllipsis(split, imgName);
+ 		}
     }
-    
-    public static void anomalyEllipsis(int split,String imgName) {
+  
+    public static void detectAnomalyEllipsis(int split,String imgName) {
 		String sorghoDir= getVesselsDir();
     	String[][]tab=pruneCsv(VitimageUtils.readStringTabFromCsv(sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor.csv"));
-
+    	int[]vesTest=null;
+    	int[]vesOk=null;
+    	if(imgName.contains("2016_G28_P3_E10")) {
+    		vesTest=new int[] {22,105,103,97,118,149,196,171,194,208,239,269,303,347,242};
+    		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
+    	}
+    	if(imgName.contains("2019_G80_P102_E14")) {
+    		vesTest=new int[] {22,149,176,145,134};
+    		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
+    	}
+    	if(imgName.contains("2019_G80_P63_E13")) {
+    		vesTest=new int[] {133};
+    		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
+    	}
+    	if(imgName.contains("2018_G01_P5_E24")) {
+    		vesTest=new int[] {35,17,10,14,8,3,35,41,47,76,66,98,122,135,125,146,145,132,104,116,119,131,150,183,166,197,201,219,212,280,274,267,256,250,239};
+    		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
+    	}
 		ImagePlus imgInit=IJ.openImage(getHighResTifDir()+"/"+imgName+".tif");
-		imgInit.show();
 		ImagePlus img=imgInit.duplicate();
 		IJ.run(img,"8-bit","");
 		img=VitimageUtils.nullImage(img);
 		int N=tab.length;
 		Timer t=new Timer();
 
-		
+		double exclusionVal=7;
+		int nMinExclusion=1;
+		boolean log=false;
 		double data[][]=new double[9][N];//Surf vess, surf sum xyl, surf phlo, ga, pa , ratio VX, ratioVP, ratio XP, ratio GP
 		String []items=new String[] {"Surface vaisseau","Surface meta","Surface phloem", "Long axis","little axis","Ratio VX","Ratio VP","Ratio XP","Ratio GP"};
 		for(int n=0;n<N;n++) {
-			data[0][n]=Double.parseDouble(tab[n][11]);
-			data[1][n]=Double.parseDouble(tab[n][26])+Double.parseDouble(tab[n][32]);
-			data[2][n]=Double.parseDouble(tab[n][20]);
-			data[3][n]=Double.parseDouble(tab[n][12]);
-			data[4][n]=Double.parseDouble(tab[n][13]);
+			data[0][n]=safeParseDouble(tab[n][11]);
+			data[1][n]=safeParseDouble(tab[n][26])+safeParseDouble(tab[n][32]);
+			data[2][n]=safeParseDouble(tab[n][20]);
+			data[3][n]=safeParseDouble(tab[n][12]);
+			data[4][n]=safeParseDouble(tab[n][13]);
 			data[5][n]=data[0][n]/data[1][n];
 			data[6][n]=data[0][n]/data[2][n];
 			data[7][n]=data[1][n]/data[2][n];
 			data[8][n]=data[3][n]/data[4][n];
+			if(log)for(int i=0;i<data.length;i++)data[i][n]=Math.log(data[i][n]);
 		}
+		int[]exclusions=new int[N];
+		String[]reasons=new String[N];for(int i=0;i<N;i++)reasons[i]="";
+		String[]reas=new String[] {"MADeSvessel","MADeSmeta","MADeSphlo","MADeLongAxis","MADeShortAxis","MADeSv/Sm","MADeSv/Sp","MADeSm/Sp","MADeLong/Short"};
 		for(int car=0;car<9;car++) {
-			System.out.println("\n"+items[car]);
-			double[]vals=VitimageUtils.statistics1D(data[car]);
-			double[]medStat=VitimageUtils.MADeStatsDoubleSided(data[car],null);
-//			System.out.println(""
-//					+ ");
+			System.out.print("\n"+items[car]);
+			double[]vals=VitimageUtils.statistics1D(noNan(data[car]));
+			double[]medStat=VitimageUtils.MADeStatsDoubleSided(noNan(data[car]),null);
+			int exWrong=0;
+			int exRight=0;
+//			System.out.println("Mean+-std : ["+dou(vals[0]-vals[1])+" - "+dou(vals[0])+" - "+dou(vals[0]+vals[1]));
+			System.out.println(" -> med+-made : ["+dou(medStat[1])+" - "+dou(medStat[0])+" - "+dou(medStat[2]));
+			System.out.print("Exclusion list");
+			//System.out.println("yCar"+car+"=[");
+			for(int i=0;i<N;i++) {
+				if(tab[i][2].contains("NONVALID"))continue;
+				double val=data[car][i];
+				//System.out.println(val+",");
+				if(Double.isNaN(val))continue;
+				double margin=dou(  ( (val<medStat[0]) ? (-medStat[0]+val)/(medStat[0]-medStat[1]) :  (-medStat[0]+val)/(medStat[2]-medStat[0]) )          );
+				if(Math.abs(margin)>exclusionVal) {
+					reasons[i]+=reasons[car]+"_";
+					exclusions[i]++;
+					boolean youpi=((vesTest==null) ? true : contains(vesTest, i+1));
+					if(youpi)exRight++;
+					else exWrong++;
+					System.out.print("  out:"+(i+1)+"("+margin+")"+(youpi ? "Y" : "W"));
+				}
+			}
+			System.out.println("\nWrongEx="+exWrong+" , RightEx="+exRight);
 		}
-    }
+		int nbFalseExcluded=0;
+		int nbProcessed=0;
+		int nbKept=0;
+		for(int i=0;i<N;i++) {
+			if(tab[i][2].contains("NONVALID")) {
+				if((vesTest!=null) && contains(vesTest,i+1))nbFalseExcluded++;
+				continue;
+			}
+//			System.out.println("Index "+(i+1)+" was excluded "+exclusions[i]+" times.");
+			if((exclusions[i]>=nMinExclusion)) {
+				nbFalseExcluded++;tab[i][2]="NONVALID";tab[i][3]=reasons[i];}
+			if((vesTest!=null) && contains(vesTest,i+1) && (exclusions[i]<nMinExclusion))System.out.println("Traitor "+(i+1)+" was released");
+			nbProcessed++;
+			if(exclusions[i]==0)nbKept++;
+		}			
+		//TODO : prodscal
+		System.out.println("Purge = "+nbFalseExcluded+"/"+((vesTest!=null) ? vesTest.length : 0)+" Total dismissed="+(nbProcessed-nbKept)+"   NbKept="+nbKept+"/"+nbProcessed);
+		String[][]tab2=VitimageUtils.readStringTabFromCsv(sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor.csv");
+		for(int i=0;i<tab.length;i++)for(int j=0;j<tab[i].length;j++)tab2[i+1][j]=tab[i][j];
+		VitimageUtils.writeStringTabInCsv(tab2, sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor_anomaly_check.csv");
+	}
     
 
-	public static ImagePlus debugEllipsis(int split,String imgName) {
+    
+    
+    
+    
+    public static void step_C_10_generateEllipsisSlices(String strSplit) {
+    	if(strSplit.contains("all")) {
+    		for(int i=1;i<10;i++)step_C_10_generateEllipsisSlices(""+i);
+    		return;
+    	}
+    	int split=Integer.parseInt(strSplit);
 		String sorghoDir= getVesselsDir();
-    	String pathToCsv=sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor.csv";
+    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
+		String[]imgNames=new File(dir).list();
+		Timer t=new Timer();
+ 		for(int indImg=0;indImg<imgNames.length;indImg++) {
+ 			t.print("\nStarting ellipsis generation in "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
+ 			String imgName=imgNames[indImg]; 
+ 			generateEllipsisSlice(imgName,false);
+ 			generateEllipsisSlice(imgName,true);
+		}
+    }
+	
+	public static void generateEllipsisSlice(String imgName,boolean afterAnomalyDetection) {
+		int split=getSplitOf(imgName);
+		String sorghoDir= getVesselsDir();
+		ImagePlus img=debugEllipsis(split,imgName,afterAnomalyDetection);
+	   	IJ.saveAsTiff(img,sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".tif");
+	}
+   
+	public static ImagePlus debugEllipsis(int split,String imgName,boolean afterAnomalyDetection) {
+		String sorghoDir= getVesselsDir();
+    	String pathToCsv=sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".csv";
 		String pathToImg=getHighResTifDir()+"/"+imgName+".tif";
 		return debugEllipsis(pathToCsv,pathToImg);
 	}
@@ -881,9 +979,10 @@ public class VesselSegmentation extends PlugInTool{
 		String sorghoDir= getVesselsDir();
     	String[][]tab=VitimageUtils.readStringTabFromCsv(pathToCsv);
 		ImagePlus imgInit=IJ.openImage(pathToLevel1Img);
+		return debugEllipsis(tab, imgInit);
+	}
 
-		
-		imgInit.show();
+	public static ImagePlus debugEllipsis(String [][]tab,ImagePlus imgInit) {
 		ImagePlus img=imgInit.duplicate();
 		IJ.run(img,"8-bit","");
 		img=VitimageUtils.nullImage(img);
@@ -893,9 +992,9 @@ public class VesselSegmentation extends PlugInTool{
 			if((n%20)==0)t.print(""+n);
 
 			String[]vals=tab[n];
-			if(vals[2].contains("NON") && vals[3].contains("STEP4")) {continue;}
 			double dx=Double.parseDouble(vals[5])-100;
 			double dy=Double.parseDouble(vals[6])-100;
+			if(vals[2].contains("NON")) {VitimageUtils.writeBlackTextOnGivenImage("X"+n, img,20,(int)dx+80,(int)dy+15);continue;}
 			
 			//draw Vessel
  			double x=Double.parseDouble(vals[9]);
@@ -905,7 +1004,6 @@ public class VesselSegmentation extends PlugInTool{
  			double angle=Double.parseDouble(vals[14]);
  			SegmentationUtils.drawEllipse(img, x+dx, y+dy, ga, pa, angle+90, 80);
 			
-			if(vals[2].contains("NON")) {VitimageUtils.writeBlackTextOnGivenImage("X"+n, img,20,(int)dx+80,(int)dy+15);continue;}
 			//draw Phlo
  			x=Double.parseDouble(vals[18]);
  			y=Double.parseDouble(vals[19]);
@@ -957,11 +1055,121 @@ public class VesselSegmentation extends PlugInTool{
  			VitimageUtils.writeBlackTextOnGivenImage("V"+n, img,20,(int)dx+80,(int)dy+15);
  			
 		}
-		img.show();
 		return img;
 	}    
 	
    
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public static int getSplitOf(String imgName) {
+		String sorghoDir= getVesselsDir();
+    	for(int i=1;i<=9;i++) {
+    		if(new File(sorghoDir+"/Data/Splitting/split_"+i+"_over_8/"+imgName).exists())return i;
+		}
+    	return 0;
+	}
+	
+    public static double dou(double d) {
+    	return VitimageUtils.dou(d);
+    }
+    
+    public static String[][]pruneCsv(String[][]tab){
+    	String[][]tabRet;
+    	int nb=tab.length;
+    	for(int i=0;i<tab.length;i++) {
+    		if( (tab[i][2].contains("Invalid"))/* || (tab[i][2].contains("NONVALID") ) */) {
+    			nb--;
+    		}    		
+    	}
+    	tabRet=new String[nb][tab[0].length];
+    	nb=0;
+    	for(int i=0;i<tab.length;i++) {
+    		if( (!tab[i][2].contains("Invalid"))/* && (!tab[i][2].contains("NONVALID") )*/ ) {
+    			tabRet[nb]=tab[i];
+    			nb++;
+    		}    		
+    	}
+    	return tabRet;
+    }
+    
+    public static double safeParseDouble(String ddd) {
+    	String d=ddd.replace(" ", "");
+    	if(d==null)return Double.NaN;
+    	if(d.equals(""))return Double.NaN;
+    	if(d.equals(" "))return Double.NaN;
+    	double dd=0;
+    	dd= Double.parseDouble(d);
+    	return dd;
+    }
+    
+    public static double[]noNan(double[]tab){
+    	double[]ret;
+    	int n=tab.length;
+    	for(int i=0;i<tab.length;i++)if(Double.isNaN(tab[i]))n--;
+    	ret=new double[n];
+    	n=0;
+    	for(int i=0;i<tab.length;i++)if(!Double.isNaN(tab[i])){ret[n++]=tab[i];};
+    	return ret;
+    }
+       
+    public static boolean contains(int[]tab,int d) {
+    	for(int dd:tab)if(dd==d)return true;
+    	return false;
+    }
+    
+    
+    
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
     //TODO
     public static void step_C_08_segment_xylem_parts_and_identify_eyes() {
 		int waiting=1000;
