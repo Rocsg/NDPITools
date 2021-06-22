@@ -30,14 +30,14 @@ public class Matthieu_BatchProcessing extends PlugInFrame{
                 @SuppressWarnings("unused")
                 ImageJ ij=new ImageJ();        
                 new Matthieu_BatchProcessing().run("");
-            
+            //ON Y VOIT BIEN, LA ;) (CTRL et le moins du 6 ca retrecit, et CTRL et le + au dessus de =, ça agrandit)
             
     }
         
         //This method is entry point when testing from Fiji
         public void run(String arg) {
                 //batchVesselDetection_Step1ProbaMap("D:/DONNEES/Sorgho_BFF/Data/Images_resamp8_test","D:/DONNEES/Sorgho_BFF/Data/ProbaMapMerged");
-                batchVesselSegmentation("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF","E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/Images_resampled8", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/ProbaMap_Segmentation");
+                batchVesselSegmentation("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/","E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/Images_resampled8", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/ProbaMap_Segmentation");
         }
         
         

@@ -30,16 +30,16 @@ public class ScriptMathieu extends PlugInFrame{
     
 	//This method is entry point when testing from Eclipse
     public static void main(String[] args) {
-		//@SuppressWarnings("unused")
-		//ImageJ ij=new ImageJ();	
-		//new ScriptMathieu().run("");
-    	Matthieu_BatchProcessing.batchVesselSegmentation(null, null, null);
+		@SuppressWarnings("unused")
+		ImageJ ij=new ImageJ();	
+		new ScriptMathieu().run("");
+    	//Matthieu_BatchProcessing.batchVesselSegmentation(null, null, null);
 
     }
 	
 	//This method is entry point when testing from Fiji
 	public void run(String arg) {
-		//listImgToProcess("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2018/Raw/Recap_echantillons.csv", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2018/Raw/", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/");
+		listImgToProcess("E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2019/Raw/Recap_echantillons.csv", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/2019/Raw/", "E:/DONNEES/Matthieu/Projet_VaisseauxSorgho/Sorgho_BFF/Data/");
 	}
 	
 	
