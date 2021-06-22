@@ -429,7 +429,12 @@ public class VesselSegmentation extends PlugInTool{
  		for(int indImg=0;indImg<imgNames.length;indImg++) {
  			t.print("\nStarting xylem contour of "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
  			String imgName=imgNames[indImg]; //Collection Mathieu 2016_G28_P3_E10   2017_G28_P1_E13.tif  2018_G01_P5_E24  2019_G80_P102_E14 2019_G80_P63_E13 (parfaite)
- 			if(makeImageDebug)if(!imgName.contains("2019_G80_P102_E14"))continue;//"2019_G01_P52_E14" "2017_G1_P4_E17"
+ 			if(makeImageDebug) {
+ 				String[]matCol=new String[] {"2016_G28_P3_E10","2017_G28_P1_E13","2018_G01_P5_E24","2019_G80_P102_E14","2019_G80_P63_E13"};
+ 				int score=0;
+ 				for(String s:matCol)if(imgName.contains(s))score++;
+ 				if(score==0)continue;
+ 			}
  			String dataPath=new File(dir,imgName).getAbsolutePath();
  			String csvPath=new File(dataPath,"circle.csv").getAbsolutePath();
  			double[]sliceCircle=SegmentationUtils.stringTabToDoubleTab(VitimageUtils.readStringTabFromCsv(csvPath)[1]);
