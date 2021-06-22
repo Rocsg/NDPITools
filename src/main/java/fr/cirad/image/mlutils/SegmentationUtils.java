@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Random;
 
@@ -19,14 +20,17 @@ import org.json.JSONObject;
 
 
 import fr.cirad.image.common.Timer;
+import fr.cirad.image.common.TransformUtils;
 import fr.cirad.image.common.VitiDialogs;
 import fr.cirad.image.common.VitimageUtils;
+import fr.cirad.image.common.TransformUtils.VolumeComparator;
 import fr.cirad.image.hyperweka.HyperWekaSegmentation;
 import fr.cirad.image.registration.ItkTransform;
 import fr.cirad.image.sorghobff.ScriptMathieu;
 import fr.cirad.image.sorghobff.VesselSegmentation;
 import hr.irb.fastRandomForest.FastRandomForest;
 import ij.IJ;
+import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
@@ -176,11 +180,11 @@ public class SegmentationUtils {
      * Outputs :
      * For each image of inputDirSource, one directory containing one image (boxSize X boxSize) per vessel and a Csv summary
      * */
-    public static void extractVessels(String inputDirSource, String inputDirSegmentation,String inputDirVoronoi, String outputDir,int resampleFactor) {    	
+    public static void extractVessels(String inputDirSource, String dirsub,String inputDirSegmentation,String inputDirVoronoi, String outputDir,int resampleFactor) {    	
     	int boxSize = 200 ;
 
     	//Loop over images
-    	String[] imgName=new File(inputDirSource).list(getFileNameFilterToExcludeCsvAndJsonFiles ());
+    	String[] imgName=new File(dirsub).list(getFileNameFilterToExcludeCsvAndJsonFiles ());
     	for(int indImg=0;indImg<imgName.length;indImg++) { 
     		System.out.println("In "+inputDirSource);
     		System.out.println(imgName[indImg]);
@@ -194,18 +198,17 @@ public class SegmentationUtils {
 	    	String basename=VitimageUtils.withoutExtension(imgName[indImg]);
 	    	new File(outputDir,basename).mkdirs();	    	
 	    	String dirImgName=new File(outputDir,basename).getAbsolutePath();
-	    	new File(dirImgName,"Source").mkdirs();
-	    	new File(dirImgName,"Segmentation_slice").mkdirs();
-	    	new File(dirImgName,"Voronoi_slice").mkdirs();
-	    	new File(dirImgName,"Segmentation_vessel").mkdirs();
+//	    	new File(dirImgName,"Source").mkdirs(); CONVERT Source/all source.tif
+//	    	new File(dirImgName,"Source_sub").mkdirs();CONVERT Source_sub/all source_sub.tif
+//	    	new File(dirImgName,"Segmentation_slice").mkdirs();CONVERT Segmentation_slice/all seg_slice.tif
+//	    	new File(dirImgName,"Voronoi_slice").mkdirs();CONVERT Voronoi_slice/all voronoi_slice.tif
+//	    	new File(dirImgName,"Segmentation_vessel").mkdirs();
 	    	ImagePlus imgVor = IJ.openImage(new File(inputDirVoronoi,imgName[indImg]).getAbsolutePath());    	
 	    	ImagePlus segTemp=imgSeg.duplicate();
 	    	IJ.run(segTemp, "Gaussian Blur...", "sigma=1");
 	    	
 	    	ImagePlus segHighRes=resize(segTemp, imgSeg.getWidth()*resampleFactor,  imgSeg.getHeight()*resampleFactor, 1);
-//	    	segTemp.show();
 	    	segHighRes=VitimageUtils.thresholdImage(segHighRes, 127.5, 256);
-	    	segHighRes.show();
 	    	ImagePlus vorHighRes=resizeNearest(imgVor, imgSeg.getWidth()*resampleFactor,  imgSeg.getHeight()*resampleFactor, 1);
 	    	vorHighRes=VitimageUtils.thresholdImage(vorHighRes, 127.5, 256);
 	    	
@@ -213,8 +216,13 @@ public class SegmentationUtils {
 	    	ArrayList<String[]> csvCoordinates = new ArrayList<String[]>();
 	    	String[] amorce = {"ImgName","Vaisseau#", "XCenter", "YCenter", "ExtractHalfSizeX", "ExtractHalfSizeY", "PathToOriginalImage"};
 	    	csvCoordinates.add(amorce);
+	    	ImagePlus[]stackSourceExtracted  =new ImagePlus[vaisseauxRoiBase.length];
+	    	ImagePlus[]stackSourceSub  =new ImagePlus[vaisseauxRoiBase.length];
+	    	ImagePlus[]stackSegExtracted  =new ImagePlus[vaisseauxRoiBase.length];
+	    	ImagePlus[]stackVorExtracted  =new ImagePlus[vaisseauxRoiBase.length];
+	    	    	
 	    	for(int i=0;i<vaisseauxRoiBase.length;i++) {
-
+	    		if(i%10==0)System.out.print("  "+i);
 	    		// Extract centroids information and resample it for source image
 	    		double[] centroid = vaisseauxRoiBase[i].getContourCentroid();		
 	    		int centroidXSource = (int) Math.round(centroid[0]*resampleFactor);
@@ -235,24 +243,34 @@ public class SegmentationUtils {
 	    		Roi areaRoi = IJ.Roi(x0-(boxSize/2), y0-(boxSize/2), boxSize, boxSize);
 	    		imgSource.setRoi(areaRoi);
 	    		ImagePlus sourceExtracted = imgSource.crop();
+	    		ImagePlus sourceSub=resize(sourceExtracted, 100, 100, 1);
 	    		segHighRes.setRoi(areaRoi);
 	    		ImagePlus segExtracted = segHighRes.crop();
+	    		segExtracted=resizeNearest(segExtracted, 100, 100, 1);
+	    		segExtracted=VitimageUtils.thresholdByteImage(segExtracted, 127, 256);
 	    		vorHighRes.setRoi(areaRoi);
 	    		ImagePlus vorExtracted = vorHighRes.crop();
+	    		vorExtracted=resizeNearest(vorExtracted, 100, 100, 1);
+	    		vorExtracted=VitimageUtils.thresholdByteImage(vorExtracted, 127, 256);
 
 	    		//Save the results
-	    		IJ.save(sourceExtracted,new File(dirImgName,"Source/V"+(i+1)).getAbsolutePath());	    	
-	    		IJ.save(segExtracted,new File(dirImgName,"Segmentation_slice/V"+(i+1)).getAbsolutePath());	    	
-	    		IJ.save(vorExtracted,new File(dirImgName,"Voronoi_slice/V"+(i+1)).getAbsolutePath());	    	
+	    		stackSourceExtracted[i]=sourceExtracted;
+	    		stackSourceSub[i]=sourceSub;
+	    		stackSegExtracted[i]=segExtracted;
+	    		stackVorExtracted[i]=vorExtracted;
 	    	
 	    		//Add a line to the CSV file of this image
-	    		csvCoordinates.add( new String[]{ 
+	    		csvCoordinates.add( new String[]{
 	    				basename,
-	    				""+(i),""+(x0),
+	    				""+(i+1),""+(x0),
 	    				""+ (y0),""+ boxSize/2, ""+boxSize/2,new File(inputDirSource,imgName[indImg]).getAbsolutePath(),
 				} );
 	    	}
-    		VitimageUtils.writeStringTabInCsv(csvCoordinates.toArray( new String[csvCoordinates.size()][csvCoordinates.get(0).length]), new File(dirImgName,"Extracts_descriptor.csv").getAbsolutePath());
+    		IJ.saveAsTiff(VitimageUtils.slicesToStack(stackSourceExtracted),new File(dirImgName,"source.tif").getAbsolutePath());	   
+    		IJ.saveAsTiff(VitimageUtils.slicesToStack(stackSourceSub),new File(dirImgName,"source_sub.tif").getAbsolutePath());	   
+    		IJ.saveAsTiff(VitimageUtils.slicesToStack(stackSegExtracted),new File(dirImgName,"seg_slice.tif").getAbsolutePath());	   
+    		IJ.saveAsTiff(VitimageUtils.slicesToStack(stackVorExtracted),new File(dirImgName,"voronoi_slice.tif").getAbsolutePath());	   
+	    	VitimageUtils.writeStringTabInCsv(csvCoordinates.toArray( new String[csvCoordinates.size()][csvCoordinates.get(0).length]), new File(dirImgName,"Extracts_descriptor.csv").getAbsolutePath());
     	}    			
     }
 
@@ -620,7 +638,7 @@ public class SegmentationUtils {
 
 		//Extraire les maxima
 		IJ.run(probaGauss, "Find Maxima...", "prominence="+thresh+" output=[Single Points]");
-		VitimageUtils.waitFor(100);
+		VitimageUtils.waitFor(10);
 		ImagePlus tmp=IJ.getImage();
 		ImagePlus pts=tmp.duplicate();
 		tmp.changes=false;
@@ -711,26 +729,280 @@ public class SegmentationUtils {
 		return VitimageUtils.compositeRGBByteTab(chans);
 	}
 
-	public static void main(String []args) {
-		ImagePlus img3=IJ.openImage("/home/rfernandez/Bureau/testBin.tif");
-		img3.show();
-		double[][]tab=inertiaComputation(img3);
-		for(int i=0;i<tab.length;i++) {
-			System.out.println();
-			for(int j=0;j<tab.length;j++) {
-				System.out.print(tab[i][j]+" , ");
-			}
-		}
+	public static ImagePlus convertShortToByte(ImagePlus labels) {
+		int max=(int) labels.getDisplayRangeMax();
+		labels.setDisplayRange(0,255);
+		IJ.run(labels,"8-bit","");
+		labels.setDisplayRange(0,max);		
+		return labels;
 	}
 	
-	public static double[][]inertiaComputation(ImagePlus bin){
-		Ellipse el=InertiaEllipse.inertiaEllipses(bin.getStack().getProcessor(1),new int[] {255}, new ij.measure.Calibration())[0];
+	
+	public static ImagePlus drawOrientationCircle(ImagePlus img,double xVect,double yVect) {
+		ImagePlus ret=VitimageUtils.nullImage(img);
+		double[]vect=TransformUtils.normalize(new double[] {xVect,yVect});
+		double co=0.85;
+		double si=0.5;
+		double[]vectArrToLeft=new double[] {-vect[0]*co-vect[1]*si,si*vect[0]-vect[1]*co};
+		double[]vectArrToRight=new double[] {-vect[0]*co+vect[1]*si,-si*vect[0]-vect[1]*co};
+		ret=SegmentationUtils.resetCalibration(VitimageUtils.nullImage(ret));
+		IJ.run(ret,"8-bit","");
+		int X=img.getWidth();
+		int Y=img.getHeight();
+		int radius=(X+Y)/4;
+		int normSeg=12;
+		int normArrow=radius-8;
+		
+
+		if((xVect==0) && (yVect==0)) {
+			int x0=X/10;		int y0=Y/10;//Center
+			int x1=X/3;		    int y1=Y/10;//Center
+			int x2=X/10;		int y2=Y/3;//Center
+			int x3=X/3;		int y3=Y/3;//Center
+			ret=drawSegmentIn2DFloatImage(ret, 3, 255, x0, y0, x3, y3);			
+			ret=drawSegmentIn2DFloatImage(ret, 3, 255, x1, y1, x2, y2);			
+			ret=resizeNearest(ret, X/2, Y/2, 1);
+		}
+		else {
+			int x0=X/2;		int y0=Y/2;//Center
+			double x1=x0+normArrow*vect[0];		double y1=y0+normArrow*vect[1];//Arrow stem
+			double x2=x1+normSeg*vectArrToLeft[0];		double y2=y1+normSeg*vectArrToLeft[1];//Arrow stem
+			double x3=x1+normSeg*vectArrToRight[0];		double y3=y1+normSeg*vectArrToRight[1];//Arrow stem
+			double x5=x0+(normArrow-normSeg+2)*vect[0];		double y5=y0+(normArrow-normSeg+2)*vect[1];//Arrow stem
+			ret=VitimageUtils.drawCircleNoFillInImage(ret,1, x0,x0, 0, 230, 3);
+			ret=VitimageUtils.drawCircleNoFillInImage(ret,normArrow+2, x0,x0, 0, 230, 3);
+			ret=drawSegmentIn2DFloatImage(ret, 3, 255, x0, y0, x5, y5);
+			ret=drawSegmentIn2DFloatImage(ret, 2, 255, x1, y1, x2, y2);
+			ret=drawSegmentIn2DFloatImage(ret, 2, 255, x1, y1, x3, y3);
+			ret=drawSegmentIn2DFloatImage(ret, 2, 255, x2, y2, x3, y3);
+			ret=resizeNearest(ret, X/2, Y/2, 1);
+		}
+		IJ.run(ret,"8-bit","");		
+		return ret;
+	}
+	
+	
+	public static ImagePlus drawSegmentIn2DFloatImage(ImagePlus imgIn,double thickness,double valToPrint,double x0,double y0,double x1,double y1) {
+		ImagePlus img=new Duplicator().run(imgIn);
+		IJ.run(img,"32-bit","");
+		int xM=img.getWidth();
+		int yM=img.getHeight();
+		int zM=img.getStackSize();
+		double[]vectAx;
+		double[]vectBx;
+		double[]vectAB=new double[] {(x1-x0),(y1-y0),0};
+		double[]vectBA=new double[] {(x0-x1),(y0-y1),0};
+		double[]vectAxproj;
+		double[]vectxprojx;
+		double distanceLine;
+		float[] valsImg=(float [])img.getStack().getProcessor(1).getPixels();
+		for(int x=0;x<xM;x++) {
+			for(int y=0;y<yM;y++) {
+				vectAx=new double[] {(x-x0),(y-y0),0};
+				vectBx=new double[] {(x-x1),(y-y1),0};
+				vectAxproj=TransformUtils.proj_u_of_v( vectAB,vectAx);
+				vectxprojx=TransformUtils.vectorialSubstraction(vectAx,vectAxproj);
+				double dist=TransformUtils.norm(vectxprojx);
+				double scal1=TransformUtils.scalarProduct(vectAx, vectAB);
+				double scal2=TransformUtils.scalarProduct(vectBx, vectBA);
+				if((scal1>0) && (scal2>0) && (dist<thickness/2.0)) valsImg[xM*y+x]=  (float)(valToPrint);
+			}			
+		}
+		return img;
+	}
+
+	
+	
+	public static void main(String []args) {
+		ImageJ ij=new ImageJ();
+		ImagePlus img3=IJ.openImage("/home/rfernandez/Bureau/testBin.tif");
+		img3.show();
+		ImagePlus img=VitimageUtils.connexeBinaryEasierParamsConnexitySelectvol(img3, 6, 0);
+		img.show();
+		double[][][]coords=SegmentationUtils.inertiaComputation65536(img, false, false,true);
+		for(int i=0;i<coords.length;i++)SegmentationUtils.printEllipse(coords[i]);
+		Timer t=new Timer();
+	}
+	
+	
+	public static ImagePlus[]splitBinaryPortraitIntoUpperAndDownPart(ImagePlus segg,double x0,double y0,double x1,double y1){
+		ImagePlus seg=segg.duplicate();
+		IJ.run(seg,"32-bit","");
+		ImagePlus []tab=new ImagePlus[] {seg.duplicate(),seg.duplicate()};
+		int X=seg.getWidth();
+		int Y=seg.getHeight();
+		float[]valTop=(float[])tab[0].getStack().getProcessor(1).getPixels();
+		float[]valBottom=(float[])tab[1].getStack().getProcessor(1).getPixels();
+		double[]vectLR=new double[] {x1-x0,y1-y0};
+		double[]vectMF=new double[] {y1-y0,-x1+x0};
+		for(int x=0;x<X;x++) for(int y=0;y<Y;y++){
+			if(valTop[y*X+x]>0) {
+				double[]vectPt=new double[] {x-x0,y-y0};
+				double orientVal=TransformUtils.scalarProduct(vectMF, vectPt);
+				//Complex calculation stands here
+				if(orientVal<0)valTop[y*X+x]=0;
+				if(orientVal>0)valBottom[y*X+x]=0;
+			}
+		}	
+		tab[0].setDisplayRange(0, 255);IJ.run(tab[0],"8-bit","");
+		tab[1].setDisplayRange(0, 255);IJ.run(tab[1],"8-bit","");
+		return tab;
+	}
+	
+	public static void printEllipse(double[][]tab) {
+		System.out.println("->Area label "+tab[0][0]+" with center ("+dou(tab[0][1])+" , "+dou(tab[0][2])+")");
+		System.out.println("  Great axis="+dou(tab[1][0])+" , short axis="+dou(tab[1][1]));
+		System.out.println("  Surface="+tab[2][0]+" , ellipse surface="+dou(tab[2][1])+" , angle="+dou(tab[2][2]));
+	}
+
+	public static double dou(double d) {return VitimageUtils.dou(d);}
+	
+	public static double[][][]inertiaComputation(ImagePlus labels,boolean sortByVolume,boolean printEllipsis,boolean excludeZeroRegion){
+		if(labels.getType()==ImagePlus.GRAY8)return inertiaComputation256(labels,sortByVolume,printEllipsis,excludeZeroRegion);
+		else return inertiaComputation65536(labels,sortByVolume,printEllipsis,excludeZeroRegion);
+	}
+
+	public static double[][][]inertiaComputation256(ImagePlus labels,boolean sortByVolume,boolean printEllipsis,boolean excludeZeroRegion){
+		int []tab=new int[256];for(int i=0;i<256;i++)tab[i]=i;
+		Ellipse[] el=InertiaEllipse.inertiaEllipses(labels.getStack().getProcessor(1),tab, null);
+		int N=(int) VitimageUtils.maxOfImage(labels)+(excludeZeroRegion ? 0 : 1);
+		int[]volumes=getVolumesOfObjects(labels);
+		double[][][]ret=new double[N][3][3];
+		for(int n=(excludeZeroRegion ? 1 : 0);n<(N+(excludeZeroRegion ? 1 : 0));n++) {
+			Ellipse e=el[n];
+			Point2D center=e.center();
+			ret[n-(excludeZeroRegion ? 1 : 0)]=new double[][] {{n,e.center().getX(),e.center().getY()},{e.radius1(),e.radius2()},{volumes[n],e.area(),e.orientation()}};
+		}
+		if(sortByVolume) {
+			Arrays.sort(ret,new VolumeEllipsisComparator());
+		}
+		if(printEllipsis) {		
+			for(int i=0;i<ret.length;i++) {
+				if(ret[i][2][0]>0) {printEllipse(ret[i]);System.out.println();}
+				
+			}
+		}
+		return ret;
+		
+	}
+
+	public static double[][][]inertiaComputation65536(ImagePlus labels,boolean sortByVolume,boolean printEllipsis,boolean excludeZeroRegion){
+		int []tab=new int[65536];for(int i=0;i<65536;i++)tab[i]=i;
+		Ellipse[] el=InertiaEllipse.inertiaEllipses(labels.getStack().getProcessor(1),tab, null);
+		int N=(int) VitimageUtils.maxOfImage(labels)+(excludeZeroRegion ? 0 : 1);
+		int[]volumes=getVolumesOfObjects(labels);
+		double[][][]ret=new double[N][3][3];
+		for(int n=(excludeZeroRegion ? 1 : 0);n<(N+(excludeZeroRegion ? 1 : 0));n++) {
+			Ellipse e=el[n];
+			Point2D center=e.center();
+			ret[n-(excludeZeroRegion ? 1 : 0)]=new double[][] {{n,e.center().getX(),e.center().getY()},{e.radius1(),e.radius2()},{volumes[n],e.area(),e.orientation()}};
+		}
+		if(sortByVolume) {
+			Arrays.sort(ret,new VolumeEllipsisComparator());
+		}
+		if(printEllipsis) {		
+			for(int i=0;i<ret.length;i++) {
+				printEllipse(ret[i]);
+				System.out.println();
+			}
+		}
+		return ret;
+		
+	}
+
+	
+	
+	public static int getVolumeOfObject(ImagePlus bin){
+		ImagePlus temp=bin.duplicate();
+		IJ.run(temp,"32-bit","");
+		int total=0;
+		int X=temp.getWidth();
+		int Y=temp.getHeight();
+		for(int z=0;z<temp.getNSlices();z++) {
+			float[]val=(float[])temp.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) for(int y=0;y<Y;y++){
+				if(val[y*X+x]>0)total++;
+			}
+		}
+		return total;
+	}
+
+	public static int[]getVolumesOfObjects(ImagePlus labels){
+		if(labels.getType()==ImagePlus.GRAY8)return getVolumesOfObjects256(labels);
+		else return getVolumesOfObjects65536(labels);
+	}
+	
+	public static int []getVolumesOfObjects65536(ImagePlus labels){
+		ImagePlus temp=labels.duplicate();
+		if(VitimageUtils.maxOfImage(labels)>65535)return null;
+		int[]volumes=new int[65536];
+		IJ.run(temp,"32-bit","");
+		int total=0;
+		int X=temp.getWidth();
+		int Y=temp.getHeight();
+		for(int z=0;z<temp.getNSlices();z++) {
+			float[]val=(float[])temp.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) for(int y=0;y<Y;y++){
+				volumes[(int)Math.round(val[y*X+x])]++;
+			}
+		}
+		return volumes;
+	}
+	
+	public static int []getVolumesOfObjects256(ImagePlus labels){
+		ImagePlus temp=labels.duplicate();
+		if(VitimageUtils.maxOfImage(labels)>255)return null;
+		int[]volumes=new int[256];
+		IJ.run(temp,"32-bit","");
+		int total=0;
+		int X=temp.getWidth();
+		int Y=temp.getHeight();
+		for(int z=0;z<temp.getNSlices();z++) {
+			float[]val=(float[])temp.getStack().getProcessor(z+1).getPixels();
+			for(int x=0;x<X;x++) for(int y=0;y<Y;y++){
+				volumes[(int)Math.round(val[y*X+x])]++;
+			}
+		}
+		return volumes;
+	}
+
+	
+	public static void drawEllipse(ImagePlus img,double xC,double  yC,double  ga,double  pa,double  angle,int value) {
+		ImageProcessor ip=img.getProcessor();
+		int x0=(int) Math.round(xC-ga-pa);
+		int x1=(int) Math.round(xC+ga+pa);
+		int y0=(int) Math.round(yC-ga-pa);
+		int y1=(int) Math.round(yC+ga+pa);
+		if(x0<0)x0=0;
+		if(y0<0)y0=0;
+		if(x1>=img.getWidth())x1=img.getWidth()-1;
+		if(y1>=img.getHeight())y1=img.getHeight()-1;
+		for(int x=x0;x<=x1;x++)for(int y=y0;y<=y1;y++) {
+			double xRel=(x-xC);
+			double yRel=y-yC;
+			double ang=-1*Math.PI*angle/180.0;
+			double xAn=xRel*Math.cos(ang)-yRel*Math.sin(ang);
+			double yAn=xRel*Math.sin(ang)+yRel*Math.cos(ang);
+			xAn=xAn/ga;
+			yAn=yAn/pa;
+			if((xAn*xAn + yAn*yAn)<1)ip.set(x, y, value);
+		}
+		img.setProcessor(ip);
+	  }
+	
+	
+	
+	public static double[][]inertiaComputationBin(ImagePlus bin,boolean debug){
+		int []tab=new int[256];for(int i=0;i<256;i++)tab[i]=i;
+		Ellipse el=InertiaEllipse.inertiaEllipses(bin.getStack().getProcessor(1),tab, null)[255];
 		double rad1=el.radius1();
-		double rad2=el.radius1();
+		double rad2=el.radius2();
 		Point2D center=el.center();
 		double surf=el.area();
 		double angle=el.orientation();
-		return new double[][] {{center.getX(),center.getY()},{rad1,rad2},{surf,angle}};
+		double[][]ret = new double[][] {{1,center.getX(),center.getY()},{rad1,rad2},{getVolumeOfObject(bin),surf,angle}};
+		if(debug)printEllipse(ret);
+		return ret;
 	}
 	
 	public static  ImagePlus erosion(ImagePlus img, int radius,boolean is3d) {
@@ -798,7 +1070,7 @@ public class SegmentationUtils {
         // Add labeled samples in a balanced and random way
   //  	seg.saveFeatureStack(1, "/home/rfernandez/Bureau/tempdata/fsa",new File(modelName).getName());
         
-        int targetExamplesPerSlice=N_EXAMPLES/(2*img.getNSlices()*(debug ? 10 : 1));
+        int targetExamplesPerSlice=N_EXAMPLES/(nCl*img.getNSlices()*(debug ? 10 : 1));
         System.out.println("Starting training on "+targetExamplesPerSlice+" examples per slice");
         seg.addRandomBalancedLabeledData(img, mask, targetExamplesPerSlice);
         Runtime. getRuntime(). gc();
@@ -989,6 +1261,7 @@ public class SegmentationUtils {
 	    return wekas;    	
     }
     
+    /*
     public static void extractVesselInformationFromBinarySlices(String inputDir,String outputDir) {
  		String[]imgNames=new File(inputDir).list();
  		for(int indImg=0;indImg<imgNames.length;indImg++) {
@@ -999,14 +1272,11 @@ public class SegmentationUtils {
  			VitimageUtils.writeStringTabInCsv(circleInfo, VitimageUtils.withoutExtension(imgNames[indImg])+"_circle.csv");
  		}
     }
-    
+    */
     
     public static ImagePlus resetCalibration(ImagePlus img) {
     	ImagePlus ret=img.duplicate();
     	ret.setCalibration(new Calibration());
-    	System.out.println(VitimageUtils.getVoxelSizes(ret)[0]);
-    	System.out.println(VitimageUtils.getVoxelSizes(ret)[1]);
-    	System.out.println(VitimageUtils.getVoxelSizes(ret)[2]);
     	return ret;
     }
     
@@ -1025,13 +1295,15 @@ public class SegmentationUtils {
  		IJ.run(imgTest,"8-bit","");
  		String[]modelPaths=new String[6];
  		for(int i=0;i<6;i++) {
- 			modelPaths[i]=vesselsDir+"/Data/Processing/Step_01_detection/Models/model_layer_1"+("_AUGSET"+i+".model");
+ 			modelPaths[i]=vesselsDir+"/Data/Processing/Models_in_prod/model_layer_1"+("_AUGSET"+i+".model");
  		}
  		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParams(1), SegmentationUtils.getStandardRandomForestFeatures(), modelPaths);
 
  		IJ.log("Starting batch processing ");        
  		Timer t= new Timer();
  		for(int indImg=0;indImg<imgNames.length;indImg++) {
+ 			if(new File(outputDir,"Segmentation/"+imgNames[indImg]).exists())continue;
+ 					// 		    if(VesselSegmentation.skip(imgNames[indImg]))continue;
  			t.print("Starting ML processing image "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
  			ImagePlus imgInit=IJ.openImage(new File(inputDir,imgNames[indImg]).getAbsolutePath());
  			ImagePlus[]results=new ImagePlus[6];
@@ -1055,7 +1327,160 @@ public class SegmentationUtils {
  		}
  	}        
 
- 	
+ 	public static void batchXyPhloContour(String extractsDir,boolean skipAlreadyDone,boolean hasHeavyDutyRAM) {
+ 		String[]imgNames=new File(extractsDir).list();
+ 		String sorghoDir=VesselSegmentation.getVesselsDir();
+ 		String modelDir=sorghoDir+"/Data/Processing/Models_in_prod/";
+ 		String target="XyPhlo";
+    	String []channels=new String[] {"Red","Green","Blue","Hue","Saturation","Brightness"};
+		ImagePlus imgTest=IJ.openImage(new File(extractsDir,imgNames[0]+"/source_sub.tif").getAbsolutePath());
+		imgTest=new Duplicator().run(imgTest,1,1,1,1,1,1);
+
+    	IJ.run(imgTest,"8-bit","");
+ 		String[]modelPaths=new String[6];
+ 		for(int i=0;i<6;i++) {
+ 			modelPaths[i]=modelDir+"model_"+target+"_"+channels[i]+".model";
+ 		}
+ 		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParamsVesselsSubSub(1), SegmentationUtils.getStandardRandomForestFeaturesVesselsSubSub(), modelPaths);
+
+ 		IJ.log("Starting batch processing ");        
+ 		Timer t= new Timer();
+ 		for(int indImg=0;indImg<imgNames.length;indImg++) {
+ //		    if(VesselSegmentation.skip(imgNames[indImg]))continue;
+ 			String dirImgName=new File(extractsDir,imgNames[indImg]).getAbsolutePath();
+	    	
+ 			ImagePlus sourceSub=IJ.openImage(new File(dirImgName,"source_sub.tif").getAbsolutePath());
+			int vesNb=sourceSub.getNSlices();
+			t.print("\n\n--------------------------------------------------------------------------------\nStarting ML processing image "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
+			ImagePlus resVess=null;
+			ImagePlus resOther=null;
+			ImagePlus resXyl=null;
+			ImagePlus resPhlo=null;
+			if(new File(dirImgName+"/probaMap_phloquad.tif").exists())continue;
+			
+			if(hasHeavyDutyRAM) {
+				ImagePlus imgInit=IJ.openImage(new File(dirImgName,"source_sub.tif").getAbsolutePath());
+				ImagePlus[]results=new ImagePlus[6];
+	 			for(int m=0;m<6;m++) {
+	 				ImagePlus img=imgInit.duplicate();
+	 				if(m<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(m)];//RGB
+		            else img=VitimageUtils.getHSB(img)[(m-3)];//HSB
+	 				results[m]=wekas[m].applyClassifier(img,0,true);
+	 			}
+	 			ImagePlus result=VitimageUtils.meanOfImageArray(results);
+	 			resVess=new Duplicator().run(result,1,1,1,result.getNSlices(),1,1);resVess.setDisplayRange(0,1);IJ.run(resVess,"8-bit","");
+	 			resOther=new Duplicator().run(result,2,2,1,result.getNSlices(),1,1);resOther.setDisplayRange(0,1);IJ.run(resOther,"8-bit","");
+	 			resXyl=new Duplicator().run(result,3,3,1,result.getNSlices(),1,1);resXyl.setDisplayRange(0,1);IJ.run(resXyl,"8-bit","");
+	 			resPhlo=new Duplicator().run(result,4,4,1,result.getNSlices(),1,1);resPhlo.setDisplayRange(0,1);IJ.run(resPhlo,"8-bit","");
+	 			VitimageUtils.garbageCollector();
+			}
+			else {
+				ImagePlus []vesStack=new ImagePlus[vesNb];
+				ImagePlus []otherStack=new ImagePlus[vesNb];
+				ImagePlus []xylStack=new ImagePlus[vesNb];
+				ImagePlus []phloStack=new ImagePlus[vesNb];
+				for(int i=0;i<vesNb;i++) {
+					System.out.println(i+" / "+vesNb+" || ");
+					ImagePlus imgInit=new Duplicator().run(sourceSub,1,1,(i+1),(i+1),1,1);
+					ImagePlus[]results=new ImagePlus[6];
+		 			for(int m=0;m<6;m++) {
+		 				ImagePlus img=imgInit.duplicate();
+		 				if(m<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(m)];//RGB
+			            else img=VitimageUtils.getHSB(img)[(m-3)];//HSB
+		 				results[m]=wekas[m].applyClassifier(img,0,true);
+		 			}
+		 			ImagePlus res=VitimageUtils.meanOfImageArray(results);
+		 			vesStack[i]=new Duplicator().run(res,1,1,1,1,1,1);vesStack[i].setDisplayRange(0,1);IJ.run(vesStack[i],"8-bit","");
+		 			otherStack[i]=new Duplicator().run(res,2,2,1,1,1,1);otherStack[i].setDisplayRange(0,1);IJ.run(vesStack[i],"8-bit","");
+		 			xylStack[i]=new Duplicator().run(res,3,3,1,1,1,1);xylStack[i].setDisplayRange(0,1);IJ.run(vesStack[i],"8-bit","");
+		 			phloStack[i]=new Duplicator().run(res,4,4,1,1,1,1);phloStack[i].setDisplayRange(0,1);IJ.run(vesStack[i],"8-bit","");
+	 				if(i%10==0) {
+			 			VitimageUtils.garbageCollector();
+		 			}
+				}
+				resVess=VitimageUtils.slicesToStack(vesStack);
+				resOther=VitimageUtils.slicesToStack(otherStack);
+				resXyl=VitimageUtils.slicesToStack(xylStack);
+				resPhlo=VitimageUtils.slicesToStack(phloStack);
+			}
+			System.out.println("Ecriture dans "+new File(dirImgName+"/probaMap_vessquad.tif").getAbsolutePath());
+ 			IJ.save(resVess, new File(dirImgName+"/probaMap_vessquad.tif").getAbsolutePath());
+ 			IJ.save(resOther, new File(dirImgName+"/probaMap_otherquad.tif").getAbsolutePath());
+ 			IJ.save(resXyl, new File(dirImgName+"/probaMap_xylquad.tif").getAbsolutePath());
+ 			IJ.save(resPhlo, new File(dirImgName+"/probaMap_phloquad.tif").getAbsolutePath());
+ 		}
+ 	}        
+
+
+ 	public static void batchVesselContour(String extractsDir,boolean skipAlreadyDone,boolean hasHeavyDutyRAM) {
+ 		String[]imgNames=new File(extractsDir).list(); 		
+ 		String sorghoDir=VesselSegmentation.getVesselsDir();
+ 		String modelDir=sorghoDir+"/Data/Processing/Models_in_prod/";
+ 		String target="Vessel_convex_hull";
+    	String []channels=new String[] {"Red","Green","Blue","Hue","Saturation","Brightness"};
+		ImagePlus imgTest=IJ.openImage(new File(extractsDir,imgNames[0]+"/source_sub.tif").getAbsolutePath());
+		imgTest=new Duplicator().run(imgTest,1,1,1,1,1,1);
+		
+    	IJ.run(imgTest,"8-bit","");
+ 		String[]modelPaths=new String[6];
+ 		for(int i=0;i<6;i++) {
+  			modelPaths[i]=modelDir+"model_"+target+"_"+channels[i]+"_sub.model";
+ 		}
+ 		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParamsVesselsSub(1), SegmentationUtils.getStandardRandomForestFeaturesVesselsSub(), modelPaths);
+
+ 		IJ.log("Starting batch processing ");        
+ 		Timer t= new Timer();
+ 		for(int indImg=0;indImg<imgNames.length;indImg++) {
+ 		    //if(VesselSegmentation.skip(imgNames[indImg]))continue;
+ 			String dirImgName=new File(extractsDir,imgNames[indImg]).getAbsolutePath();
+ 			if(!new File(dirImgName).exists())new File(dirImgName).mkdirs();
+ 			if(new File(dirImgName,"probaMap_vessel_contour.tif").exists())continue;
+			ImagePlus sourceSub=IJ.openImage(new File(dirImgName,"source_sub.tif").getAbsolutePath());
+			int vesNb=sourceSub.getNSlices();
+			t.print("\n\n-----------------------------------------------------------------------\nStarting ML processing image "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
+			VitimageUtils.waitFor(2000);
+			ImagePlus resFinal=null;
+			if(hasHeavyDutyRAM) {
+				ImagePlus imgInit=IJ.openImage(new File(dirImgName,"source_sub.tif").getAbsolutePath());
+				ImagePlus[]results=new ImagePlus[6];
+	 			for(int m=0;m<6;m++) {
+	 				ImagePlus img=imgInit.duplicate();
+	 				if(m<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(m)];//RGB
+		            else img=VitimageUtils.getHSB(img)[(m-3)];//HSB
+	 				results[m]=wekas[m].applyClassifier(img,0,true);
+	 			}
+	 			ImagePlus result=VitimageUtils.meanOfImageArray(results);
+	 			resFinal=new Duplicator().run(result,2,2,1,result.getNSlices(),1,1);
+	 			resFinal.setDisplayRange(0, 1);
+	 			IJ.run(resFinal,"8-bit","");
+	 			VitimageUtils.garbageCollector();
+			}
+			else {
+				ImagePlus[]resultsStack=new ImagePlus[vesNb];
+				for(int i=0;i<vesNb;i++) {
+					System.out.println(i+" / "+vesNb+" || ");
+					ImagePlus imgInit=new Duplicator().run(sourceSub,1,1,(i+1),(i+1),1,1);
+		 			ImagePlus[]results=new ImagePlus[6];
+		 			for(int m=0;m<6;m++) {
+		 				ImagePlus img=imgInit.duplicate();
+		 				if(m<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(m)];//RGB
+			            else img=VitimageUtils.getHSB(img)[(m-3)];//HSB
+		 				results[m]=wekas[m].applyClassifier(img,0,true);
+		 			}
+		 			ImagePlus result=VitimageUtils.meanOfImageArray(results);
+		 			resultsStack[i]=new Duplicator().run(result,2,2,1,1,1,1);
+		 			resultsStack[i].setDisplayRange(0, 1);
+		 			IJ.run(resultsStack[i],"8-bit","");
+		 			results=null;
+		 			if(i%10==0) VitimageUtils.garbageCollector();
+				}
+	 			resFinal=VitimageUtils.slicesToStack(resultsStack);
+			}
+ 			IJ.saveAsTiff(resFinal, new File(dirImgName,"probaMap_vessel_contour.tif").getAbsolutePath());
+		}
+ 	}        
+
+/*
  	public static void batchVesselContour(String extractsDir) {
  		String[]imgNames=new File(extractsDir).list();
  		String sorghoDir=VesselSegmentation.getVesselsDir();
@@ -1068,9 +1493,9 @@ public class SegmentationUtils {
  		String[]modelPaths=new String[6];
  		for(int i=0;i<6;i++) {
  	 		//"model_"+target+"_"+channels[i]
- 			modelPaths[i]=modelDir+"model_"+target+"_"+channels[i]+".model";
+ 			modelPaths[i]=modelDir+"model_"+target+"_"+channels[i]+"_sub.model";
  		}
- 		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParamsVessels(1), SegmentationUtils.getStandardRandomForestFeaturesVessels(), modelPaths);
+ 		WekaSegmentation[]wekas=SegmentationUtils.initModels(imgTest,SegmentationUtils.getStandardRandomForestParamsVesselsSub(1), SegmentationUtils.getStandardRandomForestFeaturesVesselsSub(), modelPaths);
 
  		IJ.log("Starting batch processing ");        
  		Timer t= new Timer();
@@ -1084,30 +1509,50 @@ public class SegmentationUtils {
 			int vesNb=vessList.length;
 			t.print("Starting ML processing image "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
 
+			ImagePlus []tab=new ImagePlus[vesNb];
 			for(int i=0;i<vesNb;i++) {
-				System.out.print(i+" / "+vesNb+" || ");
+				System.out.println(i+" / "+vesNb+" || ");
 				if(i%50 ==0)System.out.println();
-				ImagePlus imgInit=IJ.openImage(new File(dirImgName,"Source/V"+(i+1)+".tif").getAbsolutePath());
-	 			ImagePlus[]results=new ImagePlus[6];
+				t.print("\n\nStart");
+				tab[i]=IJ.openImage(new File(dirImgName,"Source/V"+(i+1)+".tif").getAbsolutePath());
+				t.print("01 after open");
+			}
+			ImagePlus imgInit=VitimageUtils.slicesToStack(tab);
+ 			ImagePlus[]results=new ImagePlus[6];
 	 			for(int m=0;m<6;m++) {
+					t.print("02 start m="+m);
 //	 				t.print("--"+m);
 	 				ImagePlus img=imgInit.duplicate();
+					t.print("021 after duplicate");
 	 				if(m<3)img=VitimageUtils.splitRGBStackHeadLess(img)[(m)];//RGB
 		            else img=VitimageUtils.getHSB(img)[(m-3)];//HSB
+					t.print("022 afterRGBHSB");
+	 				img=resize(img, 100, 100, img.getNSlices());
+					t.print("023 after resize");
 	 				results[m]=wekas[m].applyClassifier(img,0,true);
+					t.print("024 after weka");
 	 			}
+				t.print("03 after m's");
 	 			ImagePlus result=VitimageUtils.meanOfImageArray(results);
+				t.print("04 after mean");
 	 			result=new Duplicator().run(result,2,2,1,1,1,1);
+				t.print("05 after dup");
+ 				result=resize(result, 200, 200, 1);
+				t.print("06 after resize");
 	 			results=null;
 	 			VitimageUtils.garbageCollector();
-	 			IJ.save(result, new File(outPath,"V"+(i+1)+".tif").getAbsolutePath());
-			}
+				t.print("06 after gc");
+				for(int i=0;i<vesNb;i++) {
+					result=new Duplicator().run(result,1,1,i+1,+1,1,1);
+					IJ.save(result, new File(outPath,"V"+(i+1)+".tif").getAbsolutePath());
+				}
+				t.print("06 after save");
+			
  		}
  	}        
 
 
- 	
- 	
+ 	*/
  	
  	
  
@@ -1888,6 +2333,7 @@ public class SegmentationUtils {
     	int Ymid=img.getHeight()/2;
     	for(int i=0;i<imgs.length;i++) {
     		Roi[]rois=segmentationToRoi(imgs[i]);
+    		if (rois==null || rois.length==0) {continue;}
     		double distMax=10E8;
     		int indexMax=0;
     		for(int ind=0;ind<rois.length;ind++) {
@@ -1899,6 +2345,7 @@ public class SegmentationUtils {
     		}
     		imgs[i]=roiToSegmentation(imgs[i],rois[indexMax]);
     	}
+    	VitimageUtils.printImageResume(imgs[0]);
     	return VitimageUtils.slicesToStack(imgs);
     }
     
@@ -2070,10 +2517,14 @@ public class SegmentationUtils {
     public static int[]getStandardRandomForestParamsVessels(int seed){
 	   return new int[] {NUM_TREES,NUM_FEATS,seed,MIN_SIGMA*2,MAX_SIGMA*4};
     }
+ 
     public static int[]getStandardRandomForestParamsVesselsSub(int seed){
-	   return new int[] {NUM_TREES,NUM_FEATS,seed,MIN_SIGMA/2,MAX_SIGMA*2};
+	   return new int[] {100,10,seed,2,32};
     }
-
+    public static int[]getStandardRandomForestParamsVesselsSubSub(int seed){
+ 	   return new int[] {80,8,seed,1,16};
+     }
+ 
     public static boolean[]getShortRandomForestFeatures(){
      	return new boolean[]{
         true,   /* Gaussian_blur */
@@ -2175,6 +2626,43 @@ public class SegmentationUtils {
      	};
     }
 
+ 
+    
+    public static boolean[]getStandardRandomForestFeaturesVesselsSubSub(){
+     	return new boolean[]{
+        true,   /* Gaussian_blur */
+        false,   /* Sobel_filter */
+        true,   /* Hessian */
+        true,   /* Difference_of_gaussians */
+        false,   /* Membrane_projections */
+        true,  /* Variance */
+        false,  /* Mean */
+        true,  /* Minimum */
+        true,  /* Maximum */
+        true,  /* Median */
+        false,  /* Anisotropic_diffusion */
+        false,  /* Bilateral */
+        false,  /* Lipschitz */
+        false,  /* Kuwahara */
+        false,  /* Gabor */
+        true,  /* Derivatives */
+        true,  /* Laplacian */
+        false,  /* Structure */
+        false,  /* Entropy */
+        false   /* Neighbors */
+     	};
+    }
+
+    
+    public static ImagePlus fillHoles2D(ImagePlus imgIn) {
+    	if(VitimageUtils.isNullImage(imgIn))return imgIn;
+		ImagePlus img=imgIn.duplicate();
+		img.setDisplayRange(0, 255);
+		img=VitimageUtils.invertBinaryMask(img);
+		IJ.run(img,"Fill Holes","");
+		img=VitimageUtils.invertBinaryMask(img);
+		return img;
+    }
     
     public static ImagePlus roiToSegmentation(ImagePlus model,Roi r) {
     	ImagePlus res=VitimageUtils.nullImage(model);
@@ -2243,64 +2731,53 @@ public class SegmentationUtils {
         	for(int i=0;i<predilate;i++)IJ.run(img, "Dilate", "");
         	IJ.run(img,"Fill Holes","");
     		img=VitimageUtils.invertBinaryMask(img);
-        	if(debug) {
-        		System.out.println("Debug");
-        		ImagePlus i1=img.duplicate();
-        		i1.setTitle("i1");
-        		i1.show();
-        		VitimageUtils.waitFor(2000);
-        		i1.close();
-        	}
         	Roi[]r=SegmentationUtils.segmentationToRoi(img);
      		rm.reset();
         	VitimageUtils.waitFor(10);
         	ImagePlus[]imgs=new ImagePlus[r.length];
         	if(debug)System.out.println("Count : "+r.length);
         	for(int i=0;i<r.length;i++) {
-        		if(debug)System.out.println("Roi : "+r[i]);
-        		if(debug)System.out.println(r[i].getBoundingRect());
         		imgs[i]=roiToSegmentation(imgTemp, r[i]);
         		imgs[i]=VitimageUtils.binaryOperationBetweenTwoImages(imgs[i], imgTemp, 2);
-        		if(debug) {
-        			System.out.println("Will do convex on "+i);
-            		ImagePlus i3=imgs[i].duplicate();
-            		i3.setTitle("candidate i "+i);
-            		i3.show();
-            		VitimageUtils.waitFor(2000);
-            		i3.close();
-        			
-        		}
         		imgs[i]=getConvexHull(0, imgs[i],dilation,debug);
-        		//imgs[i].duplicate().show();
         	}
         	for(int i=1;i<r.length;i++) {
         		imgs[0]=VitimageUtils.binaryOperationBetweenTwoImages(imgs[0], imgs[i], 1);
         	}
         	return imgs[0];
     	}
+
     	img.show();
    	 	IJ.setRawThreshold(img, 127, 255, null); 	
     	rm=RoiManager.getRoiManager();
         rm.reset();
     	VitimageUtils.waitFor(10);
         IJ.run("Create Selection");
+    	VitimageUtils.waitFor(10);
         IJ.run(img, "Convex Hull", "");
         IJ.run(img,"Grays","");
         IJ.run("Colors...", "foreground=white background=black selection=yellow");
         IJ.run("Fill", "slice");
-//    	VitimageUtils.waitFor(100000);
+
         img.resetRoi();
         rm.reset();
-        
-/*        img=VitimageUtils.invertBinaryMask(img);
-    	for(int i=0;i<dilation;i++)IJ.run(img, "Dilate", "");
-    	img=VitimageUtils.invertBinaryMask(img);
-    	*/
     	ImagePlus img2=img.duplicate();
         img.changes=false;
         img.close();
         img2.getStack().setSliceLabel(imgTemp.getStack().getSliceLabel(1),1);
+        ij.WindowManager.closeAllWindows();
     	return img2;
     }
 
 }
+
+
+@SuppressWarnings("rawtypes")
+class VolumeEllipsisComparator implements java.util.Comparator {
+	   public int compare(Object o1, Object o2) {
+		   
+	      return -1*(new Double( ((double[][]) o1)[2][0]) ).compareTo( new Double( ((double[][]) o2)  [2][0])  );
+	   }
+	}
+
+

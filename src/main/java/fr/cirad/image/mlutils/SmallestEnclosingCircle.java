@@ -2,7 +2,10 @@ package fr.cirad.image.mlutils;
 
 import java.util.Random;
 
+import org.apache.commons.collections.TransformerUtils;
+
 import fr.cirad.image.common.Timer;
+import fr.cirad.image.common.TransformUtils;
 import fr.cirad.image.common.VitimageUtils;
 import ij.IJ;
 import ij.ImageJ;
@@ -19,6 +22,7 @@ public class SmallestEnclosingCircle {
 	   - Does not work with composite selections
 	   - Due to rounding errors, some selection points may be slightly outside the circle
 	*/
+	public static double standardThresholdOutlier=0.0025;
 
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
@@ -35,7 +39,7 @@ public class SmallestEnclosingCircle {
 			
 			double[]xCoordinates=new double[] {90,100,110,115,116,120};
 			double[]yCoordinates=new double[] {90,110,90,110,90,110};
-			double[]circle=smallestEnclosingCircle(xCoordinates,	yCoordinates);
+			double[]circle=smallestEnclosingCircle(xCoordinates,	yCoordinates,standardThresholdOutlier,0,null)[0];
 			img=VitimageUtils.drawCircleInImage(img, circle[2],(int)circle[0],(int)circle[1],0,255);
 			for(int i=0;i<xCoordinates.length;i++) {				
 				img=VitimageUtils.drawCircleNoFillInImage(img, 3,(int)xCoordinates[i],(int)yCoordinates[i],0,155,2);
@@ -52,7 +56,7 @@ public class SmallestEnclosingCircle {
 			}
 			
 			Timer t=new Timer();
-			double[]circle=smallestEnclosingCircle(img);
+			double[]circle=(double[]) smallestEnclosingCircle(img,true)[0];
 			t.print("It s time");
 			img=VitimageUtils.drawCircleNoFillInImage(img, circle[2],(int)circle[0],(int)circle[1],0,255,1);
 			img.show();
@@ -68,7 +72,7 @@ public class SmallestEnclosingCircle {
 			}
 			
 			Timer t=new Timer();
-			double[]circle=smallestEnclosingCircle(img);
+			double[]circle=(double[]) smallestEnclosingCircle(img,true)[0];
 			t.print("It s time");
 			img=VitimageUtils.drawCircleNoFillInImage(img, circle[2],(int)circle[0],(int)circle[1],0,255,1);
 			img.show();
@@ -87,38 +91,154 @@ public class SmallestEnclosingCircle {
 			}
 			
 			Timer t=new Timer();
-			double[]circle=smallestEnclosingCircle(img);
+			double[]circle=(double[]) smallestEnclosingCircle(img,true)[0];
 			t.print("It s time");
 			img=VitimageUtils.drawCircleNoFillInImage(img, circle[2],(int)circle[0],(int)circle[1],0,255,1);
 			img.show();
 		}
 		if(test==5) {//Test from an actual binary image
-			ImagePlus imgReal=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Test/Vessels/3_slice_seg/Segmentation_T1_WD_G01P22E8_lev1.tif");
-
-			Timer t=new Timer();
-			double[]circle=smallestEnclosingCircle(imgReal);
-			t.print("It s time");
-			imgReal=VitimageUtils.drawCircleNoFillInImage(imgReal, circle[2],(int)circle[0],(int)circle[1],0,255,1);
-			imgReal.show();
+			int indexTest=4;
+			//0.068  0.031  0.086  0.11  0.057
+			String[]tests= {"2016_G80_P1_E11","2017_G1_P1_E17","2017_G26_P6_E17","2017_G80_P5_E20","2018_G80_P3_E15"};
+			String[]otherTests= {"2018_G80_P2_E10","2017_G80_P5_E12","2018_G01_P3_E15","2019_G26_P83_E9","2019_G26_P29_E9"};
+			//ImagePlus imgReal=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Test/03_slice_seg/Segmentation/"+tests[indexTest]+".tif");
+			
+			double tmp=standardThresholdOutlier;
+			standardThresholdOutlier=0.25;
+			//double[]circle=smallestEnclosingCircle(imgReal);
+			//imgReal=VitimageUtils.drawCircleNoFillInImage(imgReal, circle[2],(int)circle[0],(int)circle[1],0,255,1);
+			//imgReal.duplicate().show();
+			standardThresholdOutlier/=2;
+			for(int j=0;j<10;j++) {
+				System.out.print("Going for "+standardThresholdOutlier);
+				ImagePlus imgReal=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Test/03_slice_seg/Segmentation/"+tests[indexTest]+".tif");
+				Object[]obj=smallestEnclosingCircle(imgReal,true);
+				double[]circle=(double[]) obj[0];
+				ImagePlus excluded=(ImagePlus) obj[1];
+				double recIndex=circle[circle.length-1];
+				imgReal=VitimageUtils.drawCircleNoFillInImage(excluded, circle[2],(int)circle[0],(int)circle[1],0,255,2);
+				//ImagePlus t=imgReal.duplicate();
+				imgReal.setTitle(""+standardThresholdOutlier);
+				imgReal.duplicate().show();
+				System.out.println(" index="+recIndex);
+				VitimageUtils.waitFor(2000);
+				standardThresholdOutlier/=2;
+			}
 		}
 
 		
 	}
 
 	/* Assume there is multiple objects here, and that we look for the min circle that surround all the centers*/
-	public static double[]smallestEnclosingCircle(ImagePlus binary){
-		Roi[]roiTab=SegmentationUtils.segmentationToRoi(binary);
-		double[]xCoordinates=new double[roiTab.length];
-		double[]yCoordinates=new double[roiTab.length];
-		for(int i=0;i<roiTab.length;i++) {
-			double[]cord=roiTab[i].getContourCentroid();
-			xCoordinates[i]=cord[0];
-			yCoordinates[i]=cord[1];
+	public static Object[]smallestEnclosingCircle(ImagePlus binary, boolean excludePointsThatDontLieOnAgoodCircle){
+		if(!excludePointsThatDontLieOnAgoodCircle)standardThresholdOutlier=100;
+		ImagePlus labels=VitimageUtils.connexeBinaryEasierParamsConnexitySelectvol(binary, 6, 0);
+		double[][][]coordsArea=SegmentationUtils.inertiaComputation(labels,false,false,true);
+		double[]xCoordinates=new double[coordsArea.length];
+		double[]yCoordinates=new double[coordsArea.length];
+		for(int i=0;i<coordsArea.length;i++) {
+			xCoordinates[i]=coordsArea[i][0][1];
+			yCoordinates[i]=coordsArea[i][0][2];
+			//System.out.println("Point : "+xCoordinates[i]+" , "+yCoordinates[i]);
 		}
-		return smallestEnclosingCircle(xCoordinates,yCoordinates);
+		//VitimageUtils.waitFor(5000000);
+		double[][]circleCoords=smallestEnclosingCircle(xCoordinates,yCoordinates,standardThresholdOutlier,0,null);
+//		labels.duplicate().show();
+		for(int i=0;i<circleCoords[1].length;i++) {
+			System.out.println("Was excluded :  "+circleCoords[1][i]+" with coordinates = "+xCoordinates[(int) circleCoords[1][i]]+" , "+yCoordinates[(int) circleCoords[1][i]]);
+			labels=VitimageUtils.switchValueInImage(labels, (int)Math.round(circleCoords[1][i])+1, 0);
+		}
+		System.out.println("Smallest circle computation. "+circleCoords[1].length +" connected components excluded");
+		labels=VitimageUtils.thresholdImage(labels, 0.5, 1E100);
+		IJ.run(labels,"8-bit","");			
+		return new Object[] {circleCoords[0],labels};
 	}
 	
-	public static double[]smallestEnclosingCircle(double[]xCoordinates, double[]yCoordinates){
+	public static double[][] smallestEnclosingCircle(double[]xC,double[]yC,double varThresholdOutlier,int recursivityIndex,boolean[]activePoints) {
+		if(activePoints==null) {
+			activePoints=new boolean[xC.length];
+			for(int i=0;i<xC.length;i++)activePoints[i]=true;
+		}
+//		System.out.println("Debug at recIndex="+recursivityIndex+" : "+getIndexesFalse(activePoints).length);
+		double[]xCoordinates=copyTabWithInclusionList(xC, activePoints);
+		double[]yCoordinates=copyTabWithInclusionList(yC, activePoints);
+		double[]vals=smallestEnclosingCircleNoOutlierCheck(xCoordinates,yCoordinates);
+		double radiusAll=vals[2];
+		int []indexes=new int[] {(int) Math.round(vals[3]),(int) Math.round(vals[4]),(int) Math.round(vals[5])};
+		double [][]xCoordTmp=new double[3][];
+		double [][]yCoordTmp=new double[3][];
+		double[][]valsLess=new double[3][];
+
+		double maxVar=0;
+		int indexMaxVar=0;
+		for(int i=0;i<3;i++){
+			boolean[]tabTmp=copyTab(activePoints);
+			tabTmp[indexes[i]]=false;
+			xCoordTmp[i]=copyTabWithInclusionList(xC, tabTmp);
+			yCoordTmp[i]=copyTabWithInclusionList(yC, tabTmp);
+			valsLess[i]=smallestEnclosingCircleNoOutlierCheck(xCoordTmp[i], yCoordTmp[i]);
+			double var=Math.abs(valsLess[i][2]-radiusAll)/radiusAll;
+			if(var>maxVar) {maxVar=var;indexMaxVar=i;}
+		}
+		
+		if(maxVar>varThresholdOutlier) {
+//			System.out.println("goind one more, after hunting "+indexes[indexMaxVar]+" tot bef exc="+getIndexesFalse(activePoints).length);
+			activePoints[indexes[indexMaxVar]]=false;
+//			System.out.println("tot aft exc="+getIndexesFalse(activePoints).length+ TransformUtils.stringVectorN(getIndexesFalse(activePoints), ""));
+			return smallestEnclosingCircle(xC,yC,varThresholdOutlier,recursivityIndex+1,activePoints);
+		}
+		else {
+			double[]indexesFalse=getIndexesFalse(activePoints);
+//			System.out.println("Finish : "+TransformUtils.stringVectorN(getIndexesFalse(activePoints), ""));
+			return new double[][] {copyTabMoreOne(vals,recursivityIndex),indexesFalse};
+		}
+	}
+
+	static boolean[]copyTab(boolean[]tab){
+		boolean[]ret=new boolean[tab.length];
+		for(int i=0;i<tab.length;i++)ret[i]=tab[i];
+		return ret;
+	}
+	
+	static double []getIndexesFalse(boolean[]list) {
+		int nAct=0;
+		for(int i=0;i<list.length;i++)if(!list[i])nAct++;
+		double[]ret=new double[nAct];
+		nAct=0;
+		for(int i=0;i<list.length;i++)if(!list[i])ret[nAct++]=i;		
+		return ret;	
+	}
+	
+	static double[]copyTabMoreOne(double[]tab,double valInsertEnd){
+		double[]ret=new double[tab.length+1];
+		for(int i=0;i<tab.length;i++)ret[i]=tab[i];
+		ret[tab.length]=valInsertEnd;
+		return ret;		
+	}
+	
+	static double[]copyTabWithInclusionList(double[]tab,boolean[]list){
+		int nAct=0;
+		for(int i=0;i<list.length;i++)if(list[i])nAct++;
+		double[]ret=new double[nAct];
+		nAct=0;
+		for(int i=0;i<list.length;i++)if(list[i])ret[nAct++]=tab[i];		
+		return ret;
+	}
+	
+	
+	static double[]copyTab(double[]tab){
+		double[]ret=new double[tab.length];
+		for(int i=0;i<tab.length;i++)ret[i]=tab[i];
+		return ret;
+	}
+	
+	static double[]copyTabLessOne(double[]tab,int indexToExclude){
+		double[]ret=new double[tab.length-1];
+		for(int i=0;i<ret.length;i++)ret[i]=( (i<indexToExclude) ? tab[i] : tab[i+1]);
+		return ret;
+	}
+	
+	public static double[]smallestEnclosingCircleNoOutlierCheck(double[]xCoordinates, double[]yCoordinates){
   	  int[] fourIndices = new int[4];
 	  int n = xCoordinates.length;
 /*	  if (n==1)
@@ -140,9 +260,10 @@ public class SmallestEnclosingCircle {
 	  double radius=0;
 	  double xcenter=0;
 	  double ycenter=0;
+	  int badIndex=0;
 	  do {
 	    double[]tmp=circle4(xCoordinates, yCoordinates,fourIndices);  //get circle through points listed in fourIndices
-	    int badIndex=(int)Math.round(tmp[3]);
+	    badIndex=(int)Math.round(tmp[3]);
 	    xcenter=tmp[0];
 	    ycenter=tmp[1];
 	    radius=tmp[2];
@@ -159,8 +280,13 @@ public class SmallestEnclosingCircle {
 	    retry = (largestRadius > radius*1.0000000000001);
 	    fourIndices[badIndex] = newIndex; //add most distant point
 	  } while (retry);
+	  //fourIndices has indices of three points making a englobant circle, and a bad index = -1;
+
+	  int []tabInd=new int[3];
+	  int incr=0;
+	  for(int i=0;i<4;i++)if(i!=badIndex)tabInd[incr++]=fourIndices[i];
 	  double diameter = Math.round(2*radius);
-	  return new double[] {xcenter,ycenter,radius};
+	  return new double[] {xcenter,ycenter,radius,tabInd[0],tabInd[1],tabInd[2]};
 	}
 
 

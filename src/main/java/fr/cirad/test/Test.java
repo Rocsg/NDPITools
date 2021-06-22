@@ -1,4 +1,4 @@
-package fr.cirad.image.sorghobff;
+package fr.cirad.test;
 
 import inra.ijpb.watershed.MarkerControlledWatershedTransform2D;
 import fr.cirad.image.common.VitimageUtils;

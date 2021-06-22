@@ -5,11 +5,13 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
 
+import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.mlutils.SegmentationUtils;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.gui.OvalRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.PlugInFrame;
 import weka.core.Debug.Random;
@@ -27,7 +29,12 @@ public class ScriptRomain extends PlugInFrame{
 
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		new ScriptRomain().run("");
+		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
+		VitimageUtils.writeBlackTextOnGivenImage("V1", img, 20,110,100);
+		VitimageUtils.writeBlackTextOnGivenImage("V3", img, 20,130,110);
+		VitimageUtils.writeBlackTextOnGivenImage("V5", img, 20,130,140);
+		VitimageUtils.writeBlackTextOnGivenImage("V7", img, 20,130,160);
+		img.show();
 	}
 	
 	public void run(String arg) {
@@ -35,8 +42,12 @@ public class ScriptRomain extends PlugInFrame{
 		//prepareExtractionOfVesselFromTestData();
 		//extractVesselsFromTestData();
 //		randomVesselsFromTestData();
-		getSegImagesCorrespondantToVessels();
-		
+//		getSegImagesCorrespondantToVessels();
+		String test="/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Test/03_slice_seg/Segmentation/2016_G80_P4_E12.tif";
+		ImagePlus img=IJ.openImage(test);
+		img.show();
+		ImagePlus img2=SegmentationUtils.dilation(img, 150, false);
+		img2.show();
 	}
 	
 	public ImagePlus getSegImagesCorrespondantToVessels(){
