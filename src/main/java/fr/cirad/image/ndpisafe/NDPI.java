@@ -40,7 +40,7 @@ public class NDPI {
 
 	public NDPI() {
 		OpenDialog od1=new OpenDialog("Select NDPI file");
-		setupInfoAndPreview(od1.getPath(),false);
+		setupInfoAndPreview(od1.getPath(),true);
 		System.out.println(this);
  	}
 

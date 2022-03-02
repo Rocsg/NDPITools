@@ -1,20 +1,26 @@
 package fr.cirad.image.sorghobff;
 
-import java.awt.Polygon;
 import java.awt.image.RGBImageFilter;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
+//import de.lmu.ifi.dbs.elki.math.linearalgebra.V
+import java.util.Vector;
 
 import org.json.*;
 
+import de.lmu.ifi.dbs.elki.math.geometry.AlphaShape;
 import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.TransformUtils;
 import fr.cirad.image.common.VitiDialogs;
 //import javax.json.stream;
 import fr.cirad.image.common.VitimageUtils;
 import fr.cirad.image.registration.ItkTransform;
+import de.lmu.ifi.dbs.elki.data.spatial.Polygon;
+
 
 import ij.IJ;
 import ij.ImageJ;
@@ -26,6 +32,7 @@ import ij.gui.Roi;
 import ij.gui.ShapeRoi;
 import ij.io.OpenDialog;
 import ij.io.RoiDecoder;
+import ij.measure.ResultsTable;
 import ij.plugin.ChannelSplitter;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageCalculator;
@@ -44,7 +51,7 @@ import fr.cirad.image.mlutils.SegmentationUtils;
 public class TestRomain extends PlugInFrame{
 	
     static{
-    	String dev="";
+    	String dev="" ;
     	String fijiHome="";
     	if(new File("/home/rfernandez").exists())dev="Romain_PCCIRAD";
     	else dev="Mathieu_PCPHIV";
@@ -182,16 +189,29 @@ public class TestRomain extends PlugInFrame{
 
 		
 		public static void main(String[]args) {
-			System.out.println(new Timer().hashCode());
 			ImageJ ij=new ImageJ();
-            WindowManager.closeAllWindows();
-            ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Processing/Step_01_detection/Weka_test/Stack_source.tif");
-//            img.show();
-             ImagePlus[]tab=VitimageUtils.getHSB(img);
-            //			new TestRomain().start();
+            ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/segmentation_slice.tif");
+            ImagePlus imgResult=testDistanceWithAlphaHull(img,75);
+            imgResult.show();
 		}
 		
-
+		
+		public static ImagePlus testDistanceWithAlphaHull(ImagePlus img,int alphaInv) {
+            ImagePlus img2=SegmentationUtils.getConcaveHull(img, alphaInv);
+        	ImagePlus distance=VitimageUtils.nullImage(img);
+    		IJ.run(distance,"8-bit","");
+            double[][]tab=SegmentationUtils.getCentroids(img);
+            double[]distances=SegmentationUtils.getDistancesFromCenterToContour(tab,img2,new double[] {658,674});
+            for(int n=0;n<tab.length;n++) {
+            	if((n%50)==0)System.out.print("N="+n);
+            	distance=VitimageUtils.drawCircleInImage(distance, 20,(int)tab[n][0], (int)tab[n][1], 0, (int)Math.round(distances[n]*255));
+            }
+            distance.show();
+            ImagePlus unary=VitimageUtils.getBinaryMaskUnary(img, 0.5);
+            ImagePlus imgWithDist=VitimageUtils.makeOperationBetweenTwoImages(unary, distance, 2, false);
+            return imgWithDist;
+		}
+		
 
         /** Steps to run  --------------------------------------------------------------------------------------------*/        		
         public static void step_00_splitTrainValidTest(int targetInsightSize,int resampleFactor) {

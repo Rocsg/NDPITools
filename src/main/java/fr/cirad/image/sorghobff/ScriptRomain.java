@@ -3,6 +3,11 @@ package fr.cirad.image.sorghobff;
 import java.awt.Rectangle;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 
 import fr.cirad.image.common.Timer;
@@ -27,14 +32,80 @@ public class ScriptRomain extends PlugInFrame{
 		super(title);
 	}
 
+	
+	public static void copyFile(String source, String target) {
+		Path tar = Paths.get(target);
+	    Path sour =  Paths.get(source);
+	    try {Files.copy(sour,tar, StandardCopyOption.REPLACE_EXISTING);} catch (IOException e) {e.printStackTrace();}
+	}
+	
+	public static void fuck() {
+		String dir="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Second_dataset_2021_07/Data_Tidy/TRAINING_COUPLES_SPLIT/";
+		for (String s : new String[] {"train","test","valid"}) {
+			System.out.println("Processing "+dir+s+"/");
+			for (String s2 : new File(dir+s).list()){
+				if(s2.contains(".jpg")) {
+					System.out.println("Processing "+dir+s+"/"+s2);
+					ImagePlus img=IJ.openImage(dir+s+"/"+s2);
+					IJ.run(img,"RGB Color","");
+					IJ.saveAsTiff(img,(dir+s+"/"+s2).replace(".jpg",".tif"));
+				}
+			}
+		}
+	}
+	
+	public static void fuck2() {
+		String dir="/media/rfernandez/DATA_RO_A/Roots_systems/Data_BPMP/Second_dataset_2021_07/Data_Tidy/IMG_RGB2";
+		for (String s1 : new File(dir).list()) {
+			for (String s2 : new File(dir,s1).list()) {
+				for (String s3 : new File(dir,s1+"/"+s2).list()) {					
+					System.out.println("Processing "+dir+"/"+s1+"/"+s2+"/"+s3);
+					ImagePlus img=IJ.openImage(dir+"/"+s1+"/"+s2+"/"+s3);
+					ImagePlus img2=VitimageUtils.compositeRGBByte(img, img, img, 1, 1, 1);
+					IJ.saveAsTiff(img2,(dir+"/"+s1+"/"+s2+"/"+s3));
+					
+				}
+			}
+		}
+	}
+	
+	
 	public static void main(String[] args) {
 		ImageJ ij=new ImageJ();
-		ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/test.tif");
-		VitimageUtils.writeBlackTextOnGivenImage("V1", img, 20,110,100);
-		VitimageUtils.writeBlackTextOnGivenImage("V3", img, 20,130,110);
-		VitimageUtils.writeBlackTextOnGivenImage("V5", img, 20,130,140);
-		VitimageUtils.writeBlackTextOnGivenImage("V7", img, 20,130,160);
-		img.show();
+		fuck2();
+		System.exit(0);
+		String input="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Data_Tidy/TRAINING_COUPLES";
+		String input2="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Data_Tidy/TRAINING_COUPLES_2";
+		String output="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Data_Tidy/REGISTERED_COUPLES";
+		//String output2="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Data_Tidy/REGISTERED_COUPLES_2";
+		String[]tabIn=new File(input).list();
+		String[]tabOut=new File(output).list();
+		System.out.println(tabIn.length);
+		System.out.println(tabOut.length);
+		int iterIn=0;
+		int iterOut=0;
+		int iterCopy=0;
+		for(int i=0;i<tabIn.length;i++)if(tabIn[i].contains(".rsml")) if(! new File(output,tabIn[i]).exists()) {
+			System.out.println(""+(iterCopy++));
+			String basename=tabIn[i].replace(".rsml","");
+			copyFile(input+"/"+basename+".rsml",input2+"/"+basename+".rsml");
+			copyFile(input+"/"+basename+".jpg",input2+"/"+basename+".jpg");
+		}
+//		IJ.openImage(input).show();
+/*		String dir="/home/rfernandez/Bureau/DATA/Racines/Data_BPMP/Data_Tidy/TRAINING_COUPLES";
+		String[]files=new File(dir).list();
+		for(int i=0;i<files.length;i++) {
+			String imgName=new File(dir,files[i]).getAbsolutePath();
+			if(imgName.contains(".jpg")) {
+				ImagePlus img=IJ.openImage(imgName);
+				System.out.println(i+" "+imgName);
+				VitimageUtils.printImageResume(img);
+				if(img.getHeight()==1024)continue;
+				//img.duplicate().show();
+				ImagePlus img2=img.resize(1024, 1024, "bilinear");
+				IJ.save(img2, imgName);
+			}
+		}*/
 	}
 	
 	public void run(String arg) {

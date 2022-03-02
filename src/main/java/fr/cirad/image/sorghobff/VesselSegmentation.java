@@ -3,6 +3,11 @@ package fr.cirad.image.sorghobff;
 import java.awt.Color;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import org.apache.commons.io.FileUtils;
 
 import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.TransformUtils;
@@ -27,6 +32,7 @@ import inra.ijpb.morphology.Morphology;
 import inra.ijpb.morphology.Strel3D;
 import trainableSegmentation.FeatureStackArray;
 import trainableSegmentation.WekaSegmentation;
+import weka.core.expressionlanguage.common.Primitives.DoubleExpression;
 
 public class VesselSegmentation extends PlugInTool{
 	int year1=0;
@@ -38,7 +44,7 @@ public class VesselSegmentation extends PlugInTool{
  	 */
 	    
 	public static void splitting() {
-		int split=8;
+		int split=10;
 		String sorghoDir= getVesselsDir();
     	String dirSourceSubIn=sorghoDir+"/Data/Test/02_tif_sub8";
     	String[]files=new File(dirSourceSubIn).list();
@@ -46,7 +52,7 @@ public class VesselSegmentation extends PlugInTool{
     	for(int i=0;i<split;i++) {
     		String str="";
 //    		new File(sorghoDir+"/Data/Splitting/split_"+(i+1)+"_over_8").mkdirs();
-    		for(int j=0;j<tab[i].length;j++) {
+    		for(int j=0;j<tab[i].length;j++){
     			String basename=VitimageUtils.withoutExtension(files[tab[i][j]]);
     			str+=""+basename+"\n";
     		}
@@ -78,17 +84,11 @@ public class VesselSegmentation extends PlugInTool{
 	}
 
 	public void run(String arg) {
-		if(arg.equals("Youpla")){
-			System.out.println("Success !");
-			return ;
-		}
- 	   IJ.log("Starting training !");
- 	   //testPouet();
- 	//  this.startSecondPhase();
-	   int startStep=8;
-	   int lastStep=10;
-	   String split="all";
+	   int startStep=12;
+	   int lastStep=12;
+	   String split="";
  	   if((arg==null) || arg.length()==0) {
+ 		   IJ.log("THIS IS THE ONE !");
  		   startStep=VitiDialogs.getIntUI("startStep", 1);
  		   lastStep=VitiDialogs.getIntUI("lastStep", 1);
  		   split=""+VitiDialogs.getIntUI("Split", 1);
@@ -109,7 +109,6 @@ public class VesselSegmentation extends PlugInTool{
  		   this.startThirdPhase(startStep,lastStep,split);
  	   }
  	   if(isOnJeanZay())System.exit(0);// To stop the slurm job
- 	   
 	}	
 	
 	//TODO for all splits :
@@ -143,18 +142,26 @@ public class VesselSegmentation extends PlugInTool{
 		   boolean bothMathieuAndRomain=true;
 		   IJ.log("Starting"); 
 		   t.print("Starting step 0");
+		   if(split.equals("")) {
+			   for(int sp=1;sp<12;sp++)  startThirdPhase(startStep, lastStep, ""+sp);
+			   return;
+		   }
+		   System.out.println("\n\n\nRunning split "+split+" from step "+startStep+" to "+lastStep);
+		   int indSplit=Integer.parseInt(split);
 		   if(startStep<=1000 && lastStep>=1000)centralToSplit();
-		   if(startStep<=0 && lastStep>=0)step_C_00_subsample();
-		   if(startStep<=1 && lastStep>=1)step_C_01_slice_ml();
-		   if(startStep<=2 && lastStep>=2)step_C_02_get_slice_center() ;
-		   if(startStep<=3 && lastStep>=3) step_C_03_debug_voronoi_and_slice_centers();
-		   if(startStep<=4 && lastStep>=4) step_C_04_extractVessels();
-		   if(startStep<=5 && lastStep>=5) step_C_05_vessels_ml(split);
-		   if(startStep<=6 && lastStep>=6) step_C_06_xyphlo_ml(split);
-		   if(startStep<=7 && lastStep>=7) step_C_07_segment_vessels_contour(split);
-		   if(startStep<=8 && lastStep>=8) step_C_08_segment_xylem_parts_and_identify_eyes(split);
-		   if(startStep<=9 && lastStep>=9)  step_C_09_anomalyEllipsis(split);
-		   if(startStep<=10 && lastStep>=10) step_C_10_generateEllipsisSlices(split);
+		   if(startStep<=0 && lastStep>=0)step_C_00_list_and_subsample(indSplit);
+		   if(startStep<=1 && lastStep>=1)step_C_01_slice_ml(indSplit);
+		   if(startStep<=2 && lastStep>=2)step_C_02_gather_ml(indSplit) ;
+		   if(startStep<=3 && lastStep>=3)step_C_03_compute_circle_and_contour(indSplit) ;
+		   if(startStep<=4 && lastStep>=4) step_C_04_BIS_debug_voronoi_and_slice_centers(indSplit);
+		   if(startStep<=5 && lastStep>=5) step_C_05_extractVessels(indSplit);
+		   if(startStep<=6 && lastStep>=6) step_C_06_vessels_ml(indSplit);
+		   if(startStep<=7 && lastStep>=7) step_C_07_xyphlo_ml(indSplit);
+		   if(startStep<=8 && lastStep>=8) step_C_08_segment_vessels_contour(indSplit);
+		   if(startStep<=9 && lastStep>=9) step_C_09_segment_xylem_parts_and_identify_eyes(indSplit);
+		   if(startStep<=10 && lastStep>=10)  step_C_10_anomalyEllipsis(indSplit);
+		   if(startStep<=11 && lastStep>=11) step_C_11_generateEllipsisSlices(indSplit);
+		   if(startStep<=12 && lastStep>=12) step_C_12_generateColouredVoronoi(indSplit);
 		   t.print("Final end of script");
     }	
     
@@ -198,59 +205,127 @@ public class VesselSegmentation extends PlugInTool{
         		System.out.println("Saving "+repSplit+"/"+imgName+"/08_extracts/source_sub.tif");
         		IJ.saveAsTiff(img,repSplit+"/"+imgName+"/08_extracts/source_sub.tif");
         		//Actions to do
-//1) Copy centralDir+"08_extracts/"+imgName+"/source.tif" to repSplit+"/08_extracts/"+imgName+"/source.tif"   //OK
-//2) Copy centralDir+"08_extracts/"+imgName+"/source_sub.tif" to repSplit+"/08_extracts/"+imgName+"/source_sub.tif"   //OK
-//3) Batch scp source.tif to Jean Zay //OK
-//4) BashlistSplit9 
-//5) Apply steps 1 to 4 to split 9, then remove things Split9, then copy level1 stuf in HighResTifDir,
-//6) Copy results to central
-//7) Copy source and source sub of 8 extracts to Jean Zay
+				//1) Copy centralDir+"08_extracts/"+imgName+"/source.tif" to repSplit+"/08_extracts/"+imgName+"/source.tif"   //OK
+				//2) Copy centralDir+"08_extracts/"+imgName+"/source_sub.tif" to repSplit+"/08_extracts/"+imgName+"/source_sub.tif"   //OK
+				//3) Batch scp source.tif to Jean Zay //OK
+				//4) BashlistSplit9 
+				//5) Apply steps 1 to 4 to split 9, then remove things Split9, then copy level1 stuf in HighResTifDir,
+				//6) Copy results to central
+				//7) Copy source and source sub of 8 extracts to Jean Zay
         		//    			String repImg=rep+imgName;//TODO
- //   			ImagePlus img=IJ.openImage(repImg+"/source_sub.tif");
+				//   			ImagePlus img=IJ.openImage(repImg+"/source_sub.tif");
     			//IJ.saveAsTiff(VitimageUtils.slicesToStack(tabStack), repImg+"/source_sub.tif");
     			
     		}
     	}
     }
    
-    /** Ok from there--------------------------------------------------------------------------------------------*/
-    //TODO : 
-	//Get input dir 1_tif, make subsampling into and 2_tif_sub8, apply ML filters, and write resulting vessel segmentation in 3_vess_seg
-    //80 seconds per image
-    public void step_C_00_subsample() {
-    	String sorghoDir= getVesselsDir();
-    	boolean makeSplit9 =true;
-    	String dirSourceIn=makeSplit9 ? (sorghoDir+"/Data/TestSplit9/01_tif") : getHighResTifDir();//sorghoDir+"/Data/Test/01_tif";
-    	System.out.println(dirSourceIn);
-    	if(!new File(dirSourceIn).exists()) {IJ.showMessage("No source Tif found !");System.exit(0);}
-    	String dirSourceSubIn=sorghoDir+"/Data/TestSplit9/02_tif_sub8";
-    	new File(dirSourceSubIn).mkdirs();
-
-    	for (String imgName : new File(dirSourceIn).list()) {
- //   	    if(skip(imgName))continue;
-    		System.out.println("Subscaling "+imgName);
-    		ImagePlus img=IJ.openImage(new File(dirSourceIn,imgName).getAbsolutePath());
-    		IJ.saveAsTiff(SegmentationUtils.subscaling2D(img, 8),new File(dirSourceSubIn,imgName).getAbsolutePath());
-    	}
+    public static String getSplitDir(int split) {
+    	return getVesselsDir()+"/Data/Splitting/"+"split_"+split+"_over_8";
     }
     
-    //TODO : 
-	//Get input dir 1_tif, make subsampling into and 2_tif_sub8, apply ML filters, and write resulting vessel segmentation in 3_vess_seg
-    //80 seconds per image
-    public void step_C_01_slice_ml() {
+    
+    //Get input dir 1_tif, make subsampling into and 2_tif_sub8, apply ML filters, and write resulting vessel segmentation in 3_vess_seg
+    public void step_C_00_list_and_subsample(int split) {
 		String sorghoDir= getVesselsDir();
-    	String dirSourceSubIn=sorghoDir+"/Data/TestSplit9/02_tif_sub8";
-    	new File(dirSourceSubIn).mkdirs();
-    	String dirSegOut=sorghoDir+"/Data/TestSplit9/03_slice_seg";
-    	new File(dirSegOut).mkdirs();
+    	String centralSplit=sorghoDir+"/Data/Splitting/";
+    	String repSplit=centralSplit+"split_"+split+"_over_8";
+		String dirSourceIn=getHighResTifDir();
 
-    	SegmentationUtils.batchVesselSegmentation(sorghoDir,dirSourceSubIn,dirSegOut);//TODO check if have a binary image containing the trace of all vessels in neighbourhood
-	}
+		//List specimen
+    	String[]imgNames=VitimageUtils.readStringFromFile(new File(repSplit+".txt").getAbsolutePath()).split("\n");
+    	
+    	//Create the split dir
+		new File(repSplit).mkdirs();
+		for(String s : imgNames) {
+	    	//Create in it one dir for each specimen of the list
+			String specPath=new File(repSplit,s).getAbsolutePath();
+			new File(specPath).mkdirs();
+			//Make the subscaling
+			ImagePlus img=IJ.openImage(new File(getHighResTifDir(),s+".tif").getAbsolutePath());
+			IJ.saveAsTiff(SegmentationUtils.subscaling2D(img, 8),new File(specPath,"slice_sub_8.tif").getAbsolutePath());
+		}		
+    }
+    
+   //"/media/rfernandez/DATA_RO_A/Sorgho_Slices_BFF/Img_lvl_1/2016_G1_P11_E11.tif"
+    
+    //Process the first ML part, to compute probaMap of vessels, and extract first vessel segmentation
+    public void step_C_01_slice_ml(int split) {
+    	//Collect all sub from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+    	System.out.println(splitDir);
+    	
+    	//Gather in a temp dir
+    	new File(splitDir,"tempIn").mkdirs();
+    	new File(splitDir,"tempOut").mkdirs();
+    	for(String spec : specNames) {
+        	System.out.println(spec);
+    		if(spec.contains("temp")  )continue;
+    		ImagePlus img=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+    		IJ.saveAsTiff(img, splitDir+"/tempIn/"+spec+".tif");
+    	}
+    	
+    	//Process
+    	SegmentationUtils.batchVesselSegmentation(getVesselsDir(),new File(splitDir,"tempIn").getAbsolutePath(),new File(splitDir,"tempOut").getAbsolutePath());
+    }	
+   	
+	
  
-    //TODO : 
-	//Get 3_vess_seg dir, extract center of the minimal circle surrounding all the vessels, and write each center in a unique CSV in 4_slice_centers
-    //0.15s per image
-    public void step_C_02_get_slice_center() {
+ 	//extract center of the minimal circle surrounding all the vessels, and write each center in a unique CSV
+    public void step_C_02_gather_ml(int split) {
+    	//Collect results : probaMaps and seg
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+		if(new File(splitDir+"/tempOut").exists()) {
+	    	for(String spec : specNames) {
+	    		
+	    		if(spec.contains("temp"))continue;
+	    		ImagePlus img=IJ.openImage(splitDir+"/tempOut/ProbaMap/"+spec+".tif");
+	    		IJ.saveAsTiff(img, splitDir+"/"+spec+"/probaMap_slice.tif");
+	    		img=IJ.openImage(splitDir+"/tempOut/Segmentation/"+spec+".tif");
+	    		IJ.saveAsTiff(img, splitDir+"/"+spec+"/segmentation_slice.tif");
+	    	}
+	    	try {
+	    		FileUtils.deleteDirectory(new File(splitDir,"tempOut"));
+				FileUtils.deleteDirectory(new File(splitDir,"tempIn"));
+			} catch (IOException e) {			e.printStackTrace();		}
+    	}
+	    	//List data from the split
+    }
+    
+    public void step_C_03_compute_circle_and_contour(int split) {
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+    	int incr=0;
+    	int NN=specNames.length;
+		for(String spec : specNames) {
+
+			//Get segmentation image
+    		ImagePlus imgSeg=IJ.openImage(splitDir+"/"+spec+"/segmentation_slice.tif");    		
+    		System.out.println((incr++)+"/"+NN+" "+spec);
+    		
+        	//Apply a series of morpho operations to get main component (in case where multiple slices present on the imaged space)
+    		ImagePlus imgDil=SegmentationUtils.dilation(imgSeg, 150, false);
+ 			imgDil=VitimageUtils.connexe(imgDil,0.5,256,0,1E100,6,1,true);
+ 			ImagePlus imgInit=VitimageUtils.binaryOperationBetweenTwoImages(imgSeg, imgDil, 2);
+
+ 	    	//Get smallest enclosing circle
+ 			Object[]obj=SmallestEnclosingCircle.smallestEnclosingCircle(imgInit,true);
+ 			double[]enclosingCircle=(double[]) obj[0];
+ 			ImagePlus im=(ImagePlus) obj[1];
+ 	   		IJ.saveAsTiff(im,splitDir+"/"+spec+"/segmentation_no_out.tif");    		
+            ImagePlus img2=SegmentationUtils.getConcaveHull(im, 200);
+            IJ.saveAsTiff(img2,splitDir+"/"+spec+"/concave_hull.tif");    		
+            
+            
+ 	    	//Write circle info 
+ 	   		String[][]circleInfo=new String[][] {{""+enclosingCircle[0],""+enclosingCircle[1],""+enclosingCircle[2]},{""+enclosingCircle[0]*8,""+enclosingCircle[1]*8,""+enclosingCircle[2]*8}};
+ 			VitimageUtils.writeStringTabInCsv(circleInfo, new File(splitDir+"/"+spec+"/circle.csv").getAbsolutePath());
+    	}
+    	
+    	
+    	/*
     	String sorghoDir= getVesselsDir();
     	String dirSourceIn2=sorghoDir+"/Data/TestSplit9/03_slice_seg/Segmentation2";
     	new File(dirSourceIn2).mkdirs();
@@ -274,12 +349,40 @@ public class VesselSegmentation extends PlugInTool{
  			String[][]circleInfo=new String[][] {{""+enclosingCircle[0],""+enclosingCircle[1],""+enclosingCircle[2]},{""+enclosingCircle[0]*8,""+enclosingCircle[1]*8,""+enclosingCircle[2]*8}};
  			VitimageUtils.writeStringTabInCsv(circleInfo, new File(dirSegOut,VitimageUtils.withoutExtension(imgNames[indImg])+"_circle.csv").getAbsolutePath());
  		}
+ 		*/
     }
-    //TODO :
-   	//Debug voronoi and slicecenters
-    //0.5 s per slice
-    public void step_C_03_debug_voronoi_and_slice_centers() {
-	       	String sorghoDir= getVesselsDir();
+    
+    
+   	//Debug image built with a voronoi and from coordinate of the surrounding circle
+    public void step_C_04_debug_voronoi_and_slice_centers(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+
+    	for(String spec : specNames) {
+    		System.out.println("Processing "+spec);
+    		//Get the circle file, the segmentation image and the grayscale extract sub
+    		ImagePlus imgSeg=IJ.openImage(splitDir+"/"+spec+"/segmentation_no_out.tif");
+    		ImagePlus imgRGB=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+    		ImagePlus imgGray=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+    		IJ.run(imgGray,"8-bit","");
+    		double[]circleCoords=SegmentationUtils.stringTabToDoubleTab(
+    				VitimageUtils.readStringTabFromCsv(
+    						new File(splitDir+"/"+spec+"/circle.csv").getAbsolutePath())[0]);
+    	
+			ImagePlus disk=VitimageUtils.drawCircleInImage(SegmentationUtils.resetCalibration(VitimageUtils.nullImage(imgGray)), circleCoords[2],(int)circleCoords[0],(int)circleCoords[1],0,255);
+			ImagePlus circle=VitimageUtils.drawCircleNoFillInImage(SegmentationUtils.resetCalibration(VitimageUtils.nullImage(imgGray)), circleCoords[2],(int)circleCoords[0],(int)circleCoords[1],0,255,3);
+			ImagePlus voronoi=SegmentationUtils.getVoronoi(imgSeg, true);
+			ImagePlus voronoiIn=VitimageUtils.binaryOperationBetweenTwoImages(voronoi, disk, 2);
+			ImagePlus contours=VitimageUtils.binaryOperationBetweenTwoImages(voronoiIn, circle, 1);
+			ImagePlus sum=VitimageUtils.binaryOperationBetweenTwoImages(contours, imgSeg, 1);
+			ImagePlus result=SegmentationUtils.visualizeBiMaskEffectOnSourceData(imgRGB,imgSeg,contours,2);
+			IJ.saveAsTiff(result,	splitDir+"/"+spec+"/debug_circ.tif");
+			IJ.saveAsTiff(voronoi,	splitDir+"/"+spec+"/voronoi.tif");
+    	}
+    }	
+/*    		
+    		String sorghoDir= getVesselsDir();
 	    	String dirSourceSubIn=sorghoDir+"/Data/TestSplit9/02_tif_sub8";
 	       	String dirSourceSubSeg=sorghoDir+"/Data/TestSplit9/03_slice_seg/Segmentation";
 	       	String dirCsvIn=sorghoDir+"/Data/TestSplit9/04_slice_centers";
@@ -311,50 +414,119 @@ public class VesselSegmentation extends PlugInTool{
     			IJ.saveAsTiff(circle,	new File(dirOutCirc,imgName).getAbsolutePath());
     			IJ.saveAsTiff(voronoi,	new File(dirOutVor,imgName).getAbsolutePath());    		
     		}
-       }
-    
- /** Ok until there-------------------------------------------------------------------------------------------------*/
-    
+       }*/
+       
+   	//Debug image built with a voronoi and from coordinate of the surrounding circle
+    public void step_C_04_BIS_debug_voronoi_and_slice_centers(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+
+    	for(String spec : specNames) {
+    		//Get the circle file, the segmentation image and the grayscale extract sub
+    		ImagePlus imgSeg=IJ.openImage(splitDir+"/"+spec+"/segmentation_no_out.tif");
+    		ImagePlus imgRGB=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+    		ImagePlus imgGray=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+    		IJ.run(imgGray,"8-bit","");
+    		double[]circleCoords=SegmentationUtils.stringTabToDoubleTab(
+    				VitimageUtils.readStringTabFromCsv(
+    						new File(splitDir+"/"+spec+"/circle.csv").getAbsolutePath())[0]);
+    	
+    		ImagePlus circle=IJ.openImage(splitDir+"/"+spec+"/concave_hull.tif");
+    		ImagePlus disk=circle.duplicate();
+    		IJ.run(disk,"Invert","");
+    		IJ.run(disk,"Fill Holes","");
+    		IJ.run(disk,"Invert","");
+			ImagePlus voronoi=SegmentationUtils.getVoronoi(imgSeg, true);
+			ImagePlus voronoiIn=VitimageUtils.binaryOperationBetweenTwoImages(voronoi, disk, 2);
+			ImagePlus contours=VitimageUtils.binaryOperationBetweenTwoImages(voronoiIn, circle, 1);
+			ImagePlus sum=VitimageUtils.binaryOperationBetweenTwoImages(contours, imgSeg, 1);
+			ImagePlus result=SegmentationUtils.visualizeBiMaskEffectOnSourceData(imgRGB,imgSeg,contours,2);
+			IJ.saveAsTiff(result,	splitDir+"/"+spec+"/debug_circ.tif");
+			IJ.saveAsTiff(voronoi,	splitDir+"/"+spec+"/voronoi.tif");
+    	}
+    }	
+/*    		
+    		String sorghoDir= getVesselsDir();
+	    	String dirSourceSubIn=sorghoDir+"/Data/TestSplit9/02_tif_sub8";
+	       	String dirSourceSubSeg=sorghoDir+"/Data/TestSplit9/03_slice_seg/Segmentation";
+	       	String dirCsvIn=sorghoDir+"/Data/TestSplit9/04_slice_centers";
+	    	String dirOutVor=sorghoDir+"/Data/TestSplit9/05_voronoi";
+	    	new File(dirOutVor).mkdirs();
+	    	String dirOutCirc=sorghoDir+"/Data/TestSplit9/06_slice_circles";
+	    	new File(dirOutCirc).mkdirs();
+	    	String dirOutDebug=sorghoDir+"/Data/TestSplit9/07_debug";
+	    	new File(dirOutDebug).mkdirs();
+    		String[]imgNames=new File(dirSourceSubIn).list();
+    		for(int indImg=0;indImg<imgNames.length;indImg++) {
+    			String imgName=imgNames[indImg];
+    			System.out.println("Starting information extraction "+(indImg+1)+"/"+imgNames.length+" : "+imgNames[indImg]);
+    			ImagePlus imgInit=IJ.openImage(new File(dirSourceSubIn,imgName).getAbsolutePath());
+    			ImagePlus imgGray=imgInit.duplicate();
+    			ImagePlus imgSegSub=IJ.openImage(new File(dirSourceSubSeg,imgName).getAbsolutePath());
+    			IJ.run(imgGray,"8-bit","");
+    			double[]circleCoords=SegmentationUtils.stringTabToDoubleTab(VitimageUtils.readStringTabFromCsv(new File(dirCsvIn,VitimageUtils.withoutExtension(imgName)+"_circle.csv").getAbsolutePath())[0]);
+//    			System.out.println(circleCoords[0]+" , "+circleCoords[1]+" , "+circleCoords[2]);
+    			ImagePlus disk=VitimageUtils.drawCircleInImage(SegmentationUtils.resetCalibration(VitimageUtils.nullImage(imgGray)), circleCoords[2],(int)circleCoords[0],(int)circleCoords[1],0,255);
+    			ImagePlus circle=VitimageUtils.drawCircleNoFillInImage(SegmentationUtils.resetCalibration(VitimageUtils.nullImage(imgGray)), circleCoords[2],(int)circleCoords[0],(int)circleCoords[1],0,255,3);
+    			ImagePlus voronoi=SegmentationUtils.getVoronoi(imgSegSub, true);
+    			ImagePlus voronoiIn=VitimageUtils.binaryOperationBetweenTwoImages(voronoi, disk, 2);
+    			ImagePlus contours=VitimageUtils.binaryOperationBetweenTwoImages(voronoiIn, circle, 1);
+    			ImagePlus sum=VitimageUtils.binaryOperationBetweenTwoImages(contours, imgSegSub, 1);
+    			//ImagePlus result=VitimageUtils.compositeRGBByte(imgSegSub, contours, imgGray, 1, 1, 1);
+    			ImagePlus result=SegmentationUtils.visualizeBiMaskEffectOnSourceData(imgInit,imgSegSub,contours,2);
+    			IJ.saveAsTiff(result,	new File(dirOutDebug,imgName).getAbsolutePath());
+    			IJ.saveAsTiff(circle,	new File(dirOutCirc,imgName).getAbsolutePath());
+    			IJ.saveAsTiff(voronoi,	new File(dirOutVor,imgName).getAbsolutePath());    		
+    		}
+       }*/
     
     
           
-    //TODO : testing
    	//Get seg and centers, extract each unique vessel
-    //4,2s per slice
-    public void step_C_04_extractVessels() {
-	   	String sorghoDir= getVesselsDir();
-	   	boolean makeSplit9 =true;
-    	String dirSourceIn=makeSplit9 ? (sorghoDir+"/Data/TestSplit9/01_tif") : getHighResTifDir();//sorghoDir+"/Data/Test/01_tif";
+    public void step_C_05_extractVessels(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+
+    	for(String spec : specNames) {
+    		System.out.println("Spec "+spec);
+    		SegmentationUtils.extractVesselsOfSpecimen(splitDir+"/"+spec,getHighResTifDir()+"/"+spec+".tif",8);
+    	}
+    	/*	   	String sorghoDir= getVesselsDir();
     	String dirSegIn=sorghoDir+"/Data/TestSplit9/03_slice_seg/Segmentation";
     	String dirVoronoiIn=sorghoDir+"/Data/TestSplit9/05_voronoi";
     	String dirSegOut=sorghoDir+"/Data/TestSplit9/08_extracts";
     	String dirSourceSubIn=sorghoDir+"/Data/TestSplit9/02_tif_sub8";
     	new File(dirSegOut).mkdirs();
-    	SegmentationUtils.extractVessels(dirSourceIn, dirSourceSubIn,dirSegIn,dirVoronoiIn,dirSegOut,8);
-    }
+    	SegmentationUtils.extractVessels(getHighResTifDir(), dirSourceSubIn,dirSegIn,dirVoronoiIn,dirSegOut,8);
+*/
+	}
 	
     //TODO : 
     //Extract vessels using the vessel binary model. If result contain multiple segmented zones, recompute a seed base watershed and update the segmented bin vessel
     //900 s per image
-    public void step_C_05_vessels_ml(String split) {
-    	if(split==null)SegmentationUtils.batchVesselContour(getVesselsDir()+"/Data/Test/08_extracts",true,true);
-    	else{
-    		int indSplit=Integer.parseInt(split);
-    		SegmentationUtils.batchVesselContour(getVesselsDir()+"/Data/Splitting/split_"+indSplit+"_over_8",true,true);
-    	}
-    }
+    public void step_C_06_vessels_ml(int split) {
+    	//if(split==null)SegmentationUtils.batchVesselContour(getVesselsDir()+"/Data/Test/08_extracts",true,true);
+    	//else{
+    		//int indSplit=Integer.parseInt(split);
+    		SegmentationUtils.batchVesselContour(getSplitDir(split),true,true);
+//    	}
+    }    
+
 
     //700 s per image
-    public void step_C_06_xyphlo_ml(String split) {
-    	if(split==null)SegmentationUtils.batchXyPhloContour(getVesselsDir()+"/Data/Test/08_extracts",true,true);
+    public void step_C_07_xyphlo_ml(int split) {
+		SegmentationUtils.batchXyPhloContour(getSplitDir(split),true,true);
+/*    	if(split==null)SegmentationUtils.batchXyPhloContour(getVesselsDir()+"/Data/Test/08_extracts",true,true);
     	else{
     		int indSplit=Integer.parseInt(split);
     		SegmentationUtils.batchXyPhloContour(getVesselsDir()+"/Data/Splitting/split_"+indSplit+"_over_8",true,true);
-    	}
+    	}*/
     }
 
 
-    public void step_C_07_segment_vessels_contour() {
+    public void step_C_08_segment_vessels_contour() {
     	String sorghoDir= getVesselsDir();
     	String dirExtracts=sorghoDir+"/Data/Test/08_extracts";
 		String[]imgNames=new File(dirExtracts).list();
@@ -382,32 +554,27 @@ public class VesselSegmentation extends PlugInTool{
  		}
     }
     
-	public void step_C_07_segment_vessels_contour(String strSplit) {
-			int split=1;
-			if(strSplit!=null && strSplit.length()>0) split=Integer.parseInt(strSplit);
- 	    	String sorghoDir= getVesselsDir();
- 	    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
- 			String[]imgNames=new File(dir).list();
- 	 		for(int indImg=0;indImg<imgNames.length;indImg++) {
- 	 			String dataPath=new File(dir,imgNames[indImg]).getAbsolutePath();
- 	 			ImagePlus source=IJ.openImage(new File(dataPath,"source_vesselstack.tif").getAbsolutePath());
- 	 			//TODO from there
- 	 			System.out.println("Starting vessels contour of "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
- 	 			int N=source.getNSlices();
-	 			ImagePlus probamap=IJ.openImage(dataPath+"/probaMap_vessel_contour.tif");
-	 			probamap =SegmentationUtils.resize(probamap, 200, 200, N);
+	public void step_C_08_segment_vessels_contour(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
 
-	 			ImagePlus voronoi=IJ.openImage(dataPath+"/voronoi_vessels.tif");
-	 			voronoi=VitimageUtils.getBinaryMaskUnary(voronoi, 0.5);
-	 			voronoi=VitimageUtils.invertBinaryMask(voronoi);
-	 			probamap=VitimageUtils.makeOperationBetweenTwoImages(probamap, voronoi, 2, true);
-	 			ImagePlus seg=getVesselSegmentationFromHighResProbaMap(probamap);
-	 			IJ.saveAsTiff(seg, dataPath+"/segmentation_vessels.tif");
- 	 		}
-  	
-    	//Apply voronoi, in case of
-    	//apply the chain
-    	//save result in
+    	for(String spec : specNames) {
+ 			String dataPath=new File(splitDir,spec).getAbsolutePath();
+ 			ImagePlus source=IJ.openImage(new File(dataPath,"source_vesselstack.tif").getAbsolutePath());
+
+ 			System.out.println("Starting vessels contour of "+spec);
+ 			int N=source.getNSlices();
+ 			ImagePlus probamap=IJ.openImage(dataPath+"/probaMap_vessel_contour.tif");
+ 			probamap =SegmentationUtils.resize(probamap, 200, 200, N);
+
+ 			ImagePlus voronoi=IJ.openImage(dataPath+"/voronoi_vessels.tif");
+ 			voronoi=VitimageUtils.getBinaryMaskUnary(voronoi, 0.5);
+ 			voronoi=VitimageUtils.invertBinaryMask(voronoi);
+ 			probamap=VitimageUtils.makeOperationBetweenTwoImages(probamap, voronoi, 2, true);
+ 			ImagePlus seg=getVesselSegmentationFromHighResProbaMap(probamap);
+ 			IJ.saveAsTiff(seg, dataPath+"/segmentation_vessels.tif");
+ 		}
     }
 
 	
@@ -415,40 +582,50 @@ public class VesselSegmentation extends PlugInTool{
     
     
     
-    
+
     //TODO
-    public static void step_C_08_segment_xylem_parts_and_identify_eyes(String strSplit) {
-    	if(strSplit.contains("all")) {
-    		for(int i=1;i<10;i++)step_C_08_segment_xylem_parts_and_identify_eyes(""+i);
-    		return;
-    	}
-    	int split=Integer.parseInt(strSplit);
-//    	int waiting=1000;
+    public static void step_C_09_segment_xylem_parts_and_identify_eyes(int split) {
     	boolean makeImageDebug=false;
     	boolean debug=false;
-		String sorghoDir= getVesselsDir();
-    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
-		String[]imgNames=new File(dir).list();
 		Timer t=new Timer();
- 		for(int indImg=0;indImg<imgNames.length;indImg++) {
- 			t.print("\nStarting xylem contour of "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
- 			String imgName=imgNames[indImg]; //Collection Mathieu 2016_G28_P3_E10   2017_G28_P1_E13.tif  2018_G01_P5_E24  2019_G80_P102_E14 2019_G80_P63_E13 (parfaite)
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+
+    	int incr=0;
+    	for(String spec : specNames) {    		
+ 			t.print("\nStarting xylem contour "+(incr++)+"/"+specNames.length+" of "+spec);
+    		String dataPath=new File(splitDir,spec).getAbsolutePath();
+    		File f=new File(dataPath+"/segmentation_combined.tif");
+    		long lastModified = f.lastModified();
+    		String pattern = "MM-dd";
+    		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);    		
+    		Date lastModifiedDate = new Date( lastModified );
+    		String s=simpleDateFormat.format( lastModifiedDate );
+    		System.out.println( "The file " + f + " was last modified on " + s );
+    		if((Integer.parseInt(s.split("-")[0])==9) && (Integer.parseInt(s.split("-")[1])>=20)) {
+        		VitimageUtils.waitFor(500);
+    			continue;
+    		}
+
+ 			String csvPath=new File(dataPath,"circle.csv").getAbsolutePath();
+ 			double[]sliceCircle=SegmentationUtils.stringTabToDoubleTab(VitimageUtils.readStringTabFromCsv(csvPath)[1]);
+ 			csvPath=new File(dataPath,"Extracts_descriptor.csv").getAbsolutePath();
+ 			String[][]vesselCenters=VitimageUtils.readStringTabFromCsv(csvPath); 			
+
+/* 			String imgName=imgNames[indImg]; //Collection Mathieu 2016_G28_P3_E10   2017_G28_P1_E13.tif  2018_G01_P5_E24  2019_G80_P102_E14 2019_G80_P63_E13 (parfaite)
  			if(makeImageDebug) {
  				String[]matCol=new String[] {"2016_G28_P3_E10","2017_G28_P1_E13","2018_G01_P5_E24","2019_G80_P102_E14","2019_G80_P63_E13"};
  				int score=0;
  				for(String s:matCol)if(imgName.contains(s))score++;
  				if(score==0)continue;
- 			}
- 			String dataPath=new File(dir,imgName).getAbsolutePath();
- 			String csvPath=new File(dataPath,"circle.csv").getAbsolutePath();
- 			double[]sliceCircle=SegmentationUtils.stringTabToDoubleTab(VitimageUtils.readStringTabFromCsv(csvPath)[1]);
- 			csvPath=new File(dataPath,"Extracts_descriptor.csv").getAbsolutePath();
- 			String[][]vesselCenters=VitimageUtils.readStringTabFromCsv(csvPath); 			
+ 			}*/
  			ImagePlus source=IJ.openImage(dataPath+"/source_vesselstack.tif");
+ 			ImagePlus hull=IJ.openImage(dataPath+"/concave_hull.tif");
 			
  			int N=source.getNSlices();
- 			String [][]csvTab=new String[N+1][65];
- 			for(int i=0;i<N+1;i++)for(int j=0;j<65;j++)csvTab[i][j]="";
+ 			String [][]csvTab=new String[N+1][54];
+ 			for(int i=0;i<N+1;i++)for(int j=0;j<54;j++)csvTab[i][j]="";
  			//Vessel
  			ImagePlus probamap=IJ.openImage(dataPath+"/probaMap_vessel_contour.tif");
  			probamap=SegmentationUtils.resize(probamap, 200, 200, 1);
@@ -511,7 +688,9 @@ public class VesselSegmentation extends PlugInTool{
 				 double[]sliceCenter=new double[] {sliceCircle[0],sliceCircle[1]};
 				 double sliceRadius=sliceCircle[2];
 	 			 double[]vesCenterRelativeToSliceCenter=new double[] {Double.parseDouble(vesselCenters[indexVes][2]) ,Double.parseDouble(vesselCenters[indexVes][3]) };
-				 double []vectSliceToVess=TransformUtils.vectorialSubstraction(vesCenterRelativeToSliceCenter, sliceCenter);
+
+	 			 double distance=SegmentationUtils.getDistancesFromCenterToContour(new double[][] {{ Double.parseDouble(vesselCenters[indexVes][2])/8,Double.parseDouble(vesselCenters[indexVes][3])/8 }},hull,new double[] {sliceCircle[0]/8,sliceCircle[1]/8})[0];
+	 			 double []vectSliceToVess=TransformUtils.vectorialSubstraction(vesCenterRelativeToSliceCenter, sliceCenter);
 				 double distanceSliceToVess=TransformUtils.norm(vectSliceToVess);
 				 double[]normalizedVectSliceToVess=TransformUtils.normalize(vectSliceToVess);
  				 double normalisedDistanceCenterToSlice=distanceSliceToVess/sliceRadius;
@@ -582,7 +761,8 @@ public class VesselSegmentation extends PlugInTool{
 		 				 double volProtUp=SegmentationUtils.getVolumeOfObject(splitProto[0]);
 		 				 double volProtBottom=SegmentationUtils.getVolumeOfObject(splitProto[1]);
  					 				 
-		 				//Score 0 = cos (mouthToNose , centerToVessel)*(normalisedDistanceCenterToSlice<0.15 ? 1 : 0.5
+		 				//Score 0 = cos (mouthToNose , centerToVessel)*(normalisedDistanceCenterToSlice<0.15 ? 1 : 0.5Oui
+		 				 
 		 				combScores[index][0]=TransformUtils.scalarProduct(normalizedVectMouthToNose, normalizedVectSliceToVess);
 		 				
 		 				//Score 1 = vesRad - dist(vesCent,eyesCent) / vesRad
@@ -715,18 +895,18 @@ public class VesselSegmentation extends PlugInTool{
 	 										"XPhloem","YPhloem","SurfacePhloem","LongRadiusPhloem","ShortRadiusPhloem","LongRadiusAnglePhloem",/* 18 - 23 */
 	 										"XLeftEye","YLeftEye","SurfaceLeftEye","LongRadiusLeftEye","ShortRadiusLeftEye","LongRadiusAngleLeftEye",/* 24 - 29 */
 	 										"XRightEye","YRightEye","SurfaceRightEye","LongRadiusRightEye","ShortRadiusRightEye","LongRadiusAngleRightEye",/* 30 - 35 */
-	 										"XProto1","YProto3","SurfaceProto1","LongRadiusProto1","ShortRadiusProto1","LongRadiusAngleProto1",/* 36 - 41 */
+	 										"XProto1","YProto1","SurfaceProto1","LongRadiusProto1","ShortRadiusProto1","LongRadiusAngleProto1",/* 36 - 41 */
 	 										"XProto2","YProto2","SurfaceProto2","LongRadiusProto2","ShortRadiusProto2","LongRadiusAngleProto2",/* 42 - 47 */
 	 										"XProto3","YProto3","SurfaceProto3","LongRadiusProto3","ShortRadiusProto3","LongRadiusAngleProto3"/* 48 - 53 */};
 	 										 			
 	 			csvTab[0]=header;
 	 			int i=indexVes;
-	 			csvTab[i][0]=imgName;
+	 			csvTab[i][0]=spec;
 	 			csvTab[i][1]=""+indexVes;  
 	 			double vesX=Double.parseDouble(vesselCenters[i][2]);
 	 			double vesY=Double.parseDouble(vesselCenters[i][3]);
 	 			if(VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1])>sliceCircle[2]*1.02) {csvTab[i][2]="NONVALID";csvTab[i][3]="OutOfPerimeter";}
-	 			
+	 			csvTab[i][4]=""+IJ.d2s(distance,6);
 	 			//csvTab[i][4]="_"+vesX+"_"+vesY+"_"+sliceCircle[0]+"_"+sliceCircle[1]
 	 					//+"_RAD="+VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1]);
 
@@ -734,7 +914,7 @@ public class VesselSegmentation extends PlugInTool{
 				csvTab[i][5]=""+(vesselCenters[i][2]);//xExtract
 	 			csvTab[i][6]=""+(vesselCenters[i][3]);//yExtract
 	 			csvTab[i][7]=""+dou(VitimageUtils.distance(vesX,vesY, sliceCircle[0], sliceCircle[1]));//Radius from slice center
-	 			csvTab[i][8]=""+dou(Math.PI*Math.atan2(vesY-sliceCircle[1],vesX-sliceCircle[0])/180.0);//Angle from slice center
+	 			csvTab[i][8]=""+dou(Math.atan2(vesY-sliceCircle[1],vesX-sliceCircle[0]));//Angle from slice center
 
 	 			
 	 			
@@ -824,45 +1004,59 @@ public class VesselSegmentation extends PlugInTool{
     }	
     
     
-    public static void step_C_09_anomalyEllipsis(String strSplit) {
-    	if(strSplit.contains("all")) {
-    		for(int i=1;i<10;i++)step_C_09_anomalyEllipsis(""+i);
-    		return;
-    	}
-    	int split=Integer.parseInt(strSplit);
-		String sorghoDir= getVesselsDir();
-    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
-		String[]imgNames=new File(dir).list();
-		Timer t=new Timer();
- 		for(int indImg=0;indImg<imgNames.length;indImg++) {
- 			t.print("\nStarting anomaly detection in "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
- 			String imgName=imgNames[indImg]; 
- 			detectAnomalyEllipsis(split, imgName);
+    public static void step_C_10_anomalyEllipsis(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+
+ 		Timer t=new Timer();
+
+ 		int incr=0;
+ 		for(String spec : specNames) {
+ 			System.out.println("Incr "+(incr++)+" / "+(specNames.length)+" "+spec);
+ 			String dataPath=new File(splitDir,spec).getAbsolutePath();
+ 			detectAnomalyEllipsis(split, spec);
  		}
     }
   
-    public static void detectAnomalyEllipsis(int split,String imgName) {
-		String sorghoDir= getVesselsDir();
-    	String[][]tab=pruneCsv(VitimageUtils.readStringTabFromCsv(sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor.csv"));
+    public static void detectAnomalyEllipsis(int split,String spec) {
+    	String splitDir=getSplitDir(split);
+    	String dataPath=new File(splitDir,spec).getAbsolutePath();
+			
+    	String[][]tab=pruneCsv(VitimageUtils.readStringTabFromCsv(dataPath+"/Vessels_descriptor.csv"));
+ 		String csvPath=new File(dataPath,"circle.csv").getAbsolutePath();
+		double[]sliceCircle=SegmentationUtils.stringTabToDoubleTab(VitimageUtils.readStringTabFromCsv(csvPath)[1]);
+			
+		//TODO
+		/* QuickFix for a mismatch between rads and degrees inf last execution of step 8. Not useful anymore after the next run of step 8*/
+		for(int line=0;line<tab.length;line++) {
+			double vesCenX=Double.parseDouble(tab[line][5]);
+			double vesCenY=Double.parseDouble(tab[line][6]);
+ 			tab[line][8]=""+dou(Math.atan2(vesCenY-sliceCircle[1],vesCenX-sliceCircle[0]));//Angle from slice center
+		}
+		
+		
     	int[]vesTest=null;
     	int[]vesOk=null;
-    	if(imgName.contains("2016_G28_P3_E10")) {
+    	
+    	/*Debug informations. Was used to tune the model*/
+    	if(spec.contains("2016_G28_P3_E10")) {
     		vesTest=new int[] {22,105,103,97,118,149,196,171,194,208,239,269,303,347,242};
     		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
     	}
-    	if(imgName.contains("2019_G80_P102_E14")) {
+    	if(spec.contains("2019_G80_P102_E14")) {
     		vesTest=new int[] {22,149,176,145,134};
     		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
     	}
-    	if(imgName.contains("2019_G80_P63_E13")) {
+    	if(spec.contains("2019_G80_P63_E13")) {
     		vesTest=new int[] {133};
     		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
     	}
-    	if(imgName.contains("2018_G01_P5_E24")) {
+    	if(spec.contains("2018_G01_P5_E24")) {
     		vesTest=new int[] {35,17,10,14,8,3,35,41,47,76,66,98,122,135,125,146,145,132,104,116,119,131,150,183,166,197,201,219,212,280,274,267,256,250,239};
     		vesOk=new int[] {10,25,33,38,50,55,78,83,87,95,152,163,197};
     	}
-		ImagePlus imgInit=IJ.openImage(getHighResTifDir()+"/"+imgName+".tif");
+		ImagePlus imgInit=IJ.openImage(getHighResTifDir()+"/"+spec+".tif");
 		ImagePlus img=imgInit.duplicate();
 		IJ.run(img,"8-bit","");
 		img=VitimageUtils.nullImage(img);
@@ -906,7 +1100,7 @@ public class VesselSegmentation extends PlugInTool{
 				if(Double.isNaN(val))continue;
 				double margin=dou(  ( (val<medStat[0]) ? (-medStat[0]+val)/(medStat[0]-medStat[1]) :  (-medStat[0]+val)/(medStat[2]-medStat[0]) )          );
 				if(Math.abs(margin)>exclusionVal) {
-					reasons[i]+=reasons[car]+"_";
+					reasons[i]+=reas[car]+"_";
 					exclusions[i]++;
 					boolean youpi=((vesTest==null) ? true : contains(vesTest, i+1));
 					if(youpi)exRight++;
@@ -933,9 +1127,12 @@ public class VesselSegmentation extends PlugInTool{
 		}			
 		//TODO : prodscal
 		System.out.println("Purge = "+nbFalseExcluded+"/"+((vesTest!=null) ? vesTest.length : 0)+" Total dismissed="+(nbProcessed-nbKept)+"   NbKept="+nbKept+"/"+nbProcessed);
-		String[][]tab2=VitimageUtils.readStringTabFromCsv(sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor.csv");
-		for(int i=0;i<tab.length;i++)for(int j=0;j<tab[i].length;j++)tab2[i+1][j]=tab[i][j];
-		VitimageUtils.writeStringTabInCsv(tab2, sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor_anomaly_check.csv");
+		String[][]tab2=VitimageUtils.readStringTabFromCsv(dataPath+"/Vessels_descriptor.csv");
+		for(int i=0;i<tab.length;i++) {
+			for(int j=0;j<tab[i].length;j++)tab2[i+1][j]=tab[i][j];
+//			tab2[i+1][8]=""+dou(Double.parseDouble(tab2[i+1][8])*(180.0/Math.PI));
+		}
+		VitimageUtils.writeStringTabInCsv(tab2, dataPath+"/Vessels_descriptor_anomaly_check.csv");
 	}
     
 
@@ -943,34 +1140,197 @@ public class VesselSegmentation extends PlugInTool{
     
     
     
-    public static void step_C_10_generateEllipsisSlices(String strSplit) {
-    	if(strSplit.contains("all")) {
-    		for(int i=1;i<10;i++)step_C_10_generateEllipsisSlices(""+i);
-    		return;
-    	}
-    	int split=Integer.parseInt(strSplit);
-		String sorghoDir= getVesselsDir();
-    	String dir=sorghoDir+"/Data/Splitting/split_"+split+"_over_8";
-		String[]imgNames=new File(dir).list();
+    public static void step_C_11_generateEllipsisSlices(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
 		Timer t=new Timer();
- 		for(int indImg=0;indImg<imgNames.length;indImg++) {
- 			t.print("\nStarting ellipsis generation in "+imgNames[indImg]+" = "+(indImg+1)+"/"+imgNames.length);
- 			String imgName=imgNames[indImg]; 
- 			generateEllipsisSlice(imgName,false);
- 			generateEllipsisSlice(imgName,true);
+
+		int incr=0;
+    	for(String spec : specNames) {
+ 			System.out.println("Incr "+(incr++)+" / "+(specNames.length)+" "+spec);
+ 			String dataPath=new File(splitDir,spec).getAbsolutePath();
+ 			generateEllipsisSlice(split,spec,false);
+ 			generateEllipsisSlice(split,spec,true);
 		}
     }
+
+    
+    public static void step_C_12_generateColouredVoronoi(int split) {
+    	//List data from the split
+    	String splitDir=getSplitDir(split);
+    	String []specNames=new File(splitDir).list();
+		Timer t=new Timer();
+
+		int incr=0;
+    	for(String spec : specNames) {
+ 			String dataPath=new File(splitDir,spec).getAbsolutePath();
+ 			ImagePlus img=generateColouredVoronoiMode1(split,spec);
+ 			IJ.saveAsTiff(img, splitDir+"/"+spec+"/Cute_distance_voronoi.tif");
+		}
+    }
+
+    public static ImagePlus generateColouredVoronoiMode1(int split,String spec) {
+    	String splitDir=getSplitDir(split);
+    	String pathToCsv=splitDir+"/"+spec+"/Vessels_descriptor_anomaly_check.csv";
+    	int extMode=1;//0=blanc, 1=grey, 2=keep
+    	
+    	//Get slice center
+    	String[][]data=VitimageUtils.readStringTabFromCsv(splitDir+"/"+spec+"/circle.csv");
+    	double[]sliceCenter=new double[] {Double.parseDouble(data[0][0]),Double.parseDouble(data[0][1])};
+    	
+    	//Get contour mask
+		ImagePlus imgContour=IJ.openImage(splitDir+"/"+spec+"/concave_hull.tif");
+		ImagePlus imgSeg=IJ.openImage(splitDir+"/"+spec+"/segmentation_no_out.tif");
+    	
+		//Take voronoi mask and Compute colormap of voronoi against distance
+		ImagePlus voronoi=IJ.openImage(splitDir+"/"+spec+"/voronoi.tif");
+		ImagePlus imgVorCells=IJ.openImage(splitDir+"/"+spec+"/voronoi.tif");
+		ImagePlus imgVorInv=IJ.openImage(splitDir+"/"+spec+"/voronoi.tif");
+		IJ.run(imgVorInv,"Invert","");
+		IJ.run(imgVorCells,"Invert","");
+		Roi[]rois=SegmentationUtils.segmentationToRoi(imgVorInv);
+		double[][]centroidsVor=new double[rois.length][];
+		imgVorInv.show();
+		for(int n=0;n<rois.length;n++) {
+			centroidsVor[n]=rois[n].getContourCentroid();
+			double[]distances=SegmentationUtils.getDistancesFromCenterToContour(new double[][] {centroidsVor[n]}, imgContour, sliceCenter);
+			imgVorInv.setRoi(rois[n]);
+			int value=(int)Math.round(distances[0]*255);
+			imgVorInv.setColor(new Color(value,value,value));
+			imgVorInv.getRoi().setFillColor(new Color(value,value,value));
+		    IJ.run(imgVorInv,"Fill","");
+			imgVorInv.resetRoi();
+		}
+		ImagePlus vorInsideDistanceColor=imgVorInv.duplicate();
+		ImagePlus vorInsideDistanceColorOne=imgVorInv.duplicate();
+		IJ.run(vorInsideDistanceColorOne,"8-bit","");
+		IJ.run(vorInsideDistanceColorOne,"32-bit","");
+		vorInsideDistanceColorOne=VitimageUtils.makeOperationOnOneImage(vorInsideDistanceColorOne, 3, 255, true);
+		
+		IJ.run(vorInsideDistanceColor,"Fire","");
+		IJ.run(vorInsideDistanceColor,"RGB Color", "");
+		
+		//Get initial source data
+		ImagePlus imgSourceRGB=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+		ImagePlus imgSourceGray=IJ.openImage(splitDir+"/"+spec+"/slice_sub_8.tif");
+		IJ.run(imgSourceGray,"8-bit","");
+		double[]circleCoords=SegmentationUtils.stringTabToDoubleTab(				VitimageUtils.readStringTabFromCsv(						new File(splitDir+"/"+spec+"/circle.csv").getAbsolutePath())[0]);	
+		ImagePlus circle=IJ.openImage(splitDir+"/"+spec+"/concave_hull.tif");
+
+		//Generate mask of contour inside
+		ImagePlus disk=circle.duplicate();
+		IJ.run(disk,"Invert","");		IJ.run(disk,"Fill Holes","");		IJ.run(disk,"Invert","");
+		ImagePlus voronoiIn=VitimageUtils.binaryOperationBetweenTwoImages(voronoi, disk, 2);
+		ImagePlus contours=VitimageUtils.binaryOperationBetweenTwoImages(voronoiIn, circle, 1);
+		ImagePlus maskVoronoi=VitimageUtils.getBinaryMaskUnary(contours, 0.5);
+		
+		
+		int[]colorContourVess=new int[] {200,200,200};
+		int contourVessSize=2;
+		double alphaGrey=2.0;
+		int offsetGrey=120;
+		double dzetaGrey=1.4;
+		double betaGrey=0.15;
+		int[]colorContourVoronoi=new int[] {20,20,255};
+		ImagePlus contourVess=imgSeg.duplicate();
+		SegmentationUtils.dilation(contourVess, contourVessSize, false);
+		contourVess=VitimageUtils.binaryOperationBetweenTwoImages(contourVess, imgSeg, 4);
+		contourVess=VitimageUtils.getBinaryMaskUnary(contourVess, 0.5);
+
+		//We have segmentation_no_out, mask of cells
+		//contours, mask of voronoi and circle
+		//imgVorCells, mask of voronoi areas inside the circle
+		//contourVess
+		//vorInsideDistanceColor, imagecoloured with respect to distance inside influence areas
+		
+		//Build mask of only distance color
+		imgSeg=VitimageUtils.getBinaryMaskUnary(imgSeg, 0.5);
+		ImagePlus maskOnlyDistance=VitimageUtils.binaryOperationBetweenTwoImages(contours, contourVess	, 1);
+		maskOnlyDistance=VitimageUtils.binaryOperationBetweenTwoImages(maskOnlyDistance, imgSeg	, 1);
+		maskOnlyDistance=VitimageUtils.invertBinaryMask(maskOnlyDistance);		
+		
+		
+		//Prepare data
+		ImagePlus[]imgSourceVess=VitimageUtils.splitRGBStackHeadLess(imgSourceRGB);
+		ImagePlus imgSourceRGBGrey=imgSourceRGB.duplicate();
+		ImagePlus imgSourceRGBGrey2=imgSourceRGB.duplicate();
+		IJ.run(imgSourceRGBGrey,"8-bit","");
+		IJ.run(imgSourceRGBGrey,"32-bit","");
+		ImagePlus imgSourceRGBGreyExt=imgSourceRGBGrey.duplicate();
+		IJ.run(imgSourceRGBGreyExt,"RGB Color","");
+		imgSourceRGBGrey=VitimageUtils.makeOperationOnOneImage(imgSourceRGBGrey, 3	, alphaGrey, true);
+		imgSourceRGBGrey=VitimageUtils.makeOperationOnOneImage(imgSourceRGBGrey, 1	, offsetGrey, true);
+		imgSourceRGBGrey=VitimageUtils.makeOperationOnOneImage(imgSourceRGBGrey, 2	, 1.0/255.0, true);
+		vorInsideDistanceColorOne=VitimageUtils.makeOperationOnOneImage(vorInsideDistanceColorOne, 2, betaGrey, true);
+		imgSourceRGBGrey=VitimageUtils.makeOperationBetweenTwoImages(imgSourceRGBGrey, vorInsideDistanceColorOne, 1, true);
+		//imgSourceRGBGrey.show();
+		//VitimageUtils.waitFor(500000);
+		ImagePlus[]imgSourceDist=VitimageUtils.splitRGBStackHeadLess(vorInsideDistanceColor.duplicate());
+		ImagePlus[]imgContourVess=VitimageUtils.splitRGBStackHeadLess(vorInsideDistanceColor.duplicate());
+		ImagePlus[]imgContourVor=VitimageUtils.splitRGBStackHeadLess(vorInsideDistanceColor.duplicate());
+		ImagePlus[]imgExtRGB=VitimageUtils.splitRGBStackHeadLess(extMode==1 ? imgSourceRGBGreyExt : imgSourceRGBGrey2);
+		contourVess=VitimageUtils.getBinaryMaskUnaryFloat(contourVess, 0.5);
+		contours=VitimageUtils.getBinaryMaskUnaryFloat(contours, 0.5);
+		ImagePlus[]ret=new ImagePlus[3];
+		disk=VitimageUtils.getBinaryMaskUnaryFloat(disk, 0.5);
+		ImagePlus diskOut=VitimageUtils.invertBinaryMask(disk);
+		
+		
+		for(int can=0;can<3;can++) {
+			//Reset values of distance color where needed
+			imgSourceDist[can]=VitimageUtils.makeOperationBetweenTwoImages(imgSourceDist[can], maskOnlyDistance, 2, true);
+			//Multiply by grey values
+			imgSourceDist[can]=VitimageUtils.makeOperationBetweenTwoImages(imgSourceDist[can], imgSourceRGBGrey, 2, true);
+			imgSourceDist[can]=VitimageUtils.makeOperationOnOneImage(imgSourceDist[can], 2,dzetaGrey, true);
+			IJ.run(imgSourceDist[can],"8-bit","");
+
+			//Reset values of vessels color where needed
+			imgSourceVess[can]=VitimageUtils.makeOperationBetweenTwoImages(imgSourceVess[can],imgSeg, 2, true);
+			imgSourceVess[can]=VitimageUtils.makeOperationOnOneImage(imgSourceVess[can],1,1.4, true);
+			IJ.run(imgSourceVess[can],"8-bit","");
+
+			//Set contourVess
+			imgContourVess[can]=VitimageUtils.makeOperationOnOneImage(contourVess, 2, colorContourVess[can],true);
+			IJ.run(imgContourVess[can],"8-bit","");
+
+			//Set contour
+			imgContourVor[can]=VitimageUtils.makeOperationOnOneImage(contours, 2, colorContourVoronoi[can],true);
+			IJ.run(imgContourVor[can],"8-bit","");
+
+			//Add everything
+			ret[can]=VitimageUtils.makeOperationBetweenTwoImages(imgSourceDist[can], imgSourceVess[can], 1, false);
+			ret[can]=VitimageUtils.makeOperationBetweenTwoImages(ret[can], imgContourVess[can], 1, false);
+			ret[can]=VitimageUtils.makeOperationBetweenTwoImages(ret[can], imgContourVor[can], 1, false);
+			ret[can]=VitimageUtils.makeOperationBetweenTwoImages(ret[can],disk,2, false);
+			
+			//Process outside
+			imgExtRGB[can]=VitimageUtils.makeOperationBetweenTwoImages(imgExtRGB[can],diskOut,2, false);
+			imgExtRGB[can]=VitimageUtils.makeOperationOnOneImage(imgExtRGB[can],2, 1.5,false);
+			if(extMode==0) {
+				imgExtRGB[can]=VitimageUtils.makeOperationOnOneImage(imgExtRGB[can],2,1000000000,false);
+			}
+			ret[can]=VitimageUtils.makeOperationBetweenTwoImages(ret[can], imgExtRGB[can], 1, false);
+		}
 	
-	public static void generateEllipsisSlice(String imgName,boolean afterAnomalyDetection) {
-		int split=getSplitOf(imgName);
-		String sorghoDir= getVesselsDir();
-		ImagePlus img=debugEllipsis(split,imgName,afterAnomalyDetection);
-	   	IJ.saveAsTiff(img,sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".tif");
+		ImagePlus result=VitimageUtils.compositeRGBByte(ret[0], ret[1], ret[2],1,1,1);				
+		result.setTitle(spec);
+		//result.show();
+		VitimageUtils.waitFor(20);
+		imgVorInv.changes=false;
+		imgVorInv.close();//2016_G1_P3_E19 jolie
+		return result;
+    }
+
+    
+    
+	public static void generateEllipsisSlice(int split,String spec,boolean afterAnomalyDetection) {
+		ImagePlus img=debugEllipsis(split,spec,afterAnomalyDetection);
+	   	IJ.saveAsTiff(img,getSplitDir(split)+"/"+spec+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".tif");
 	}
    
 	public static ImagePlus debugEllipsis(int split,String imgName,boolean afterAnomalyDetection) {
-		String sorghoDir= getVesselsDir();
-    	String pathToCsv=sorghoDir+"/Data/Splitting/split_"+split+"_over_8/"+imgName+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".csv";
+		String pathToCsv=getSplitDir(split)+"/"+imgName+"/Vessels_descriptor"+(afterAnomalyDetection?"_anomaly_check":"")+".csv";
 		String pathToImg=getHighResTifDir()+"/"+imgName+".tif";
 		return debugEllipsis(pathToCsv,pathToImg);
 	}
@@ -2180,7 +2540,7 @@ public class VesselSegmentation extends PlugInTool{
 	
    public static String getHighResTifDir() {
     	if(new File("/home/rfernandez").exists()) {
-    		return "/Donnees/DD_CIRS626_DATA/Sorgho/Images_lvl1";
+    		return "/media/rfernandez/DATA_RO_A/Sorgho_Slices_BFF/Img_lvl_1";
     	}
     	return null;
     }
