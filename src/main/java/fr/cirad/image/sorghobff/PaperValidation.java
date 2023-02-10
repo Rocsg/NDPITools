@@ -1,16 +1,10 @@
 package fr.cirad.image.sorghobff;
 
-import java.io.File;
-
-import fr.cirad.image.common.VitimageUtils;
+import io.github.rocsg.fijiyama.common.*;
 import fr.cirad.image.mlutils.SegmentationUtils;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.gui.PolygonRoi;
-import ij.gui.Roi;
-import ij.gui.ShapeRoi;
-import ij.plugin.frame.RoiManager;
 
 public class PaperValidation {
 	
@@ -34,7 +28,7 @@ public class PaperValidation {
 		if(false)doStep1_part_2Valid();
 		if(false)countStructuresStep2();
 		if(false)segmentAndEvaluateVessels();
-		if(false)fading();
+		if(true)fading();
 	}
 	
 	
@@ -42,17 +36,16 @@ public class PaperValidation {
 	public static void segmentAndEvaluateVessels() {
 		//1)Constitute set
 		ImagePlus imgSourceTest=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Insights_and_annotations/Vessels_dataset/"+
-		"Split_train_val_test/Test/Source.tif";
+		"Split_train_val_test/Test/Source.tif");
 		//100 slices, in which there is as a title : "V32_Img_insight_11_2"
 		
 		//In CSV such as
-		String csv="/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Insights_and_annotations/Vessels_dataset/Full_vessels/Full_vessels_ordered_by_slice/Img_insight_11_2/Img_insight_11_2.csv"
+		String csv="/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Insights_and_annotations/Vessels_dataset/Full_vessels/Full_vessels_ordered_by_slice/Img_insight_11_2/Img_insight_11_2.csv";
 		//There is Img_insight_11_2 	32	2765	1297	200	200
 
 		
 		//I just need to make a CSV with for each insight, coordinates of the center. Then I can hack the stuff
 		//For each		
-		3	V32_Img_insight_11_2.tif 
 
 	}
 	

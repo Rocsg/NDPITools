@@ -155,7 +155,7 @@
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
         http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.phenomen</groupId>
+  <groupId>io.github.rocsg</groupId>
   <artifactId>NDPITools</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>NDPITools</name>
@@ -226,12 +226,36 @@
           
                   
         <dependencies>
-                <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
-                <dependency>
-                    <groupId>org.apache.poi</groupId>
-                    <artifactId>poi</artifactId>
-                    <version>3.17</version>
-                </dependency>
+        <!-- https://mvnrepository.com/artifact/de.lmu.ifi.dbs.elki/elki -->
+<!-- https://mvnrepository.com/artifact/it.unimi.dsi/fastutil -->
+<dependency>
+    <groupId>it.unimi.dsi</groupId>
+    <artifactId>fastutil</artifactId>
+    <version>8.5.5</version>
+</dependency>
+			<!-- Thanks for using https://jar-download.com -->
+			<dependency>
+			    <groupId>org.jgrapht</groupId>
+			    <artifactId>jgrapht-core</artifactId>
+			    <version>1.3.1</version>
+			</dependency>
+			
+			<dependency>
+			    <groupId>de.lmu.ifi.dbs.elki</groupId>
+			    <artifactId>elki</artifactId>
+			    <version>0.7.5</version>
+			</dependency>
+	        <dependency>
+			    <groupId>commons-io</groupId>
+			    <artifactId>commons-io</artifactId>
+			    <version>2.6</version>
+			</dependency>
+            <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>3.17</version>
+            </dependency>
            <!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
 			<dependency>
 			    <groupId>fr.inra.ijpb</groupId>
@@ -239,18 +263,18 @@
 			    <version>1.4.2.1</version>
 			</dependency>
    <!-- https://mvnrepository.com/artifact/loci/bio-formats -->
-<dependency>
-    <groupId>loci</groupId>
-    <artifactId>bio-formats</artifactId>
-    <version>4.5-imagej-2.0.0-beta6</version>
-</dependency>
-   <!-- https://mvnrepository.com/artifact/loci/loci_plugins -->
-<dependency>
-    <groupId>loci</groupId>
-    <artifactId>loci_plugins</artifactId>
-    <version>4.5-imagej-2.0.0-beta6</version>
-</dependency>
-   
+			<dependency>
+			    <groupId>loci</groupId>
+			    <artifactId>bio-formats</artifactId>
+			    <version>4.5-imagej-2.0.0-beta6</version>
+			</dependency>
+			   <!-- https://mvnrepository.com/artifact/loci/loci_plugins -->
+			<dependency>
+			    <groupId>loci</groupId>
+			    <artifactId>loci_plugins</artifactId>
+			    <version>4.5-imagej-2.0.0-beta6</version>
+			</dependency>
+			   
 		   <dependency>
 		      <groupId>com.opencsv</groupId>
 		      <artifactId>opencsv</artifactId>
@@ -269,8 +293,8 @@
                     <groupId>org.json</groupId>
                     <artifactId>json</artifactId>
                            <version>20180130</version>
-                        </dependency>
-                <dependency>
+              	         </dependency>
+               <dependency>
                     <groupId>org.apache.poi</groupId>
                     <artifactId>poi-ooxml</artifactId>
                     <version>3.17</version>
@@ -308,12 +332,7 @@
                     <version>2.0.2</version>
                 </dependency>
                 
-                <dependency>
-                    <groupId>commons-io</groupId>
-                    <artifactId>commons-io</artifactId>
-                    <version>2.5</version>
-                </dependency>
-
+ 
                 <!-- https://mvnrepository.com/artifact/org.itk.simple/simpleitk -->
                 <dependency>
                     <groupId>org.itk.simple</groupId>
@@ -322,24 +341,15 @@
                     <type>jar</type>
                 </dependency>
 
-                 <dependency>
-                    <groupId>fr.cirad.image</groupId>
-                    <artifactId>HyperWeka</artifactId>
-                    <version>0.0.1</version>
-                    <scope>system</scope>
-                        <systemPath>${basedir}/lib/HyperWeka/HyperWeka-jar/0.0.1/HyperWeka-0.0.1.jar</systemPath>            
-                </dependency>
+		  		<dependency>
+				  <groupId>io.github.rocsg</groupId>
+				  <artifactId>fijiyama</artifactId>
+				  <version>4.0.3</version>
+				</dependency> 
+		  
+  
                 
-                 <dependency>
-                    <groupId>fr.cirad.image</groupId>
-                    <artifactId>Fijiyama</artifactId>
-                    <version>4.0.0</version>
-                    <scope>system</scope>
-                        <systemPath>${basedir}/lib/Fijiyama/Fijiyama-jar/4.0.0/Fijiyama-4.0.0.jar</systemPath>            
-                </dependency>
-          <!--${basedir} -->
-
-
+	
                 <!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
                 <dependency>
                     <groupId>sc.fiji</groupId>
@@ -374,6 +384,7 @@
                     <version>3.6.1</version>
                 </dependency>
 
+   <!-- https://mvnrepository.com/artifact/com.github.mcib3d/mcib3d-core 
                 <dependency>
                     <groupId>com.sun.media</groupId>
                     <artifactId>JAI-codec</artifactId>
@@ -382,7 +393,7 @@
                         <systemPath>${basedir}/lib/JAI-codec/JAI-codec-jar/1.1.3/JAI-codec.1.1.3.jar</systemPath>
                 </dependency>
 
-
+-->
 
         </dependencies>
           
