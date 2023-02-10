@@ -1,32 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/5.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-	http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>com.phenomen</groupId>
-  <artifactId>NDPITools</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <name>NDPITools</name>
+	xsi:schemaLocation="http://maven.apache.org/POM/5.0.0
+		http://maven.apache.org/xsd/maven-5.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>fr.cirad.image.test</groupId>
+	<artifactId>Tests</artifactId>
+	  <version>0.0.1-SNAPSHOT</version>
+	  <name>Tests</name>
+
+
+    <build>
+        <sourceDirectory>src/main/java/fr/cirad/tests</sourceDirectory>
+    </build>
+
 	<scm>
-		<connection>scm:git:git://github.com/Rocsg/NDPITools</connection>
-		<developerConnection>scm:git:git@github.com:Rocsg/NDPITools</developerConnection>
+		<connection>scm:git:git://github.com/Rocsg/TestsJava</connection>
+		<developerConnection>scm:git:git@github.com:Rocsg/TestsJava</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/Rocsg/NDPITools</url>
+		<url>https://github.com/Rocsg/TestsJava</url>
 	</scm>
- 	<issueManagement>
-		<system>GitHub Issues</system>
-		<url>https://github.com/Rocsg/NDPITools/issues</url>
-	</issueManagement>
 	<ciManagement>
 		<system>None</system>
 	</ciManagement>
 
 	<properties>
-		<package-name>com.phenomen</package-name>
+		<package-name>fr.cirad.image.tests</package-name>
 		<license.licenseName>bsd_2</license.licenseName>
-		<main-class>NDPITest</main-class>
-		<license.copyrightOwners>vitimage</license.copyrightOwners>
+		<main-class>Simple_Test</main-class>
+		<license.copyrightOwners>fr.cirad</license.copyrightOwners>
   	    <maven.compiler.source>1.8</maven.compiler.source>
 	    <maven.compiler.target>1.8</maven.compiler.target>
 	    
@@ -60,8 +62,12 @@
 			<archive>https://forum.image.sc/</archive>
 		</mailingList>
 	</mailingLists>
+	<packaging>jar</packaging>
+	<description>Tests</description>
+	<inceptionYear>2021</inceptionYear>
 	<organization>
-		<name>CIRAD / Phenomen</name>
+		<name>phenomen</name>
+		<url>https://www.plan-deperissement-vigne.fr/travaux-de-recherche/programmes-de-recherche/vitimage</url>
 	</organization>
 	<licenses>
 		<license>
@@ -71,40 +77,24 @@
 	</licenses>
 
 
-
-  	
-  		
+	
 	<dependencies>
-		<!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
+		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
 		<dependency>
-		    <groupId>org.apache.poi</groupId>
-		    <artifactId>poi</artifactId>
-		    <version>3.17</version>
+		    <groupId>com.aparapi</groupId>
+		    <artifactId>aparapi</artifactId>
+		    <version>3.0.0</version>
 		</dependency>
-	   <!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
-<dependency>
-    <groupId>fr.inra.ijpb</groupId>
-    <artifactId>MorphoLibJ_</artifactId>
-    <version>1.4.2.1</version>
-</dependency>
-	   
-	    <dependency>
-    		<groupId>org.json</groupId>
-    		<artifactId>json</artifactId>
-   			<version>20180130</version>
-			</dependency>
 		<dependency>
-		    <groupId>org.apache.poi</groupId>
-		    <artifactId>poi-ooxml</artifactId>
-		    <version>3.17</version>
+		  <groupId>io.github.rocsg</groupId>
+		  <artifactId>fijirelax</artifactId>
+		  <version>4.0.1</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/sc.fiji/Fiji_Plugins -->
 		<dependency>
 		    <groupId>sc.fiji</groupId>
-		    <artifactId>Fiji_Plugins</artifactId>
-		    <version>3.1.1</version>
+		    <artifactId>Trainable_Segmentation</artifactId>
+		    <version>3.2.34</version>
 		</dependency>
-		
 		<dependency>
 		    <groupId>net.imagej</groupId>
 		    <artifactId>ij</artifactId>
@@ -115,25 +105,20 @@
 		    <artifactId>VIB-lib</artifactId>
 		    <version>2.2.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/sc.fiji/imagescience -->
+
+		<!-- https://mvnrepository.com/artifact/org.scijava/scijava-java3d -->
 		<dependency>
-		    <groupId>sc.fiji</groupId>
-		    <artifactId>imagescience</artifactId>
-		    <version>3.0.0</version>
+		    <groupId>org.scijava</groupId>
+		    <artifactId>scijava-java3d</artifactId>
+		    <version>0.1.0</version>
 		</dependency>
-		
-		<!-- https://mvnrepository.com/artifact/sc.fiji/Feature_Detection -->
-		<dependency>
-		    <groupId>sc.fiji</groupId>
-		    <artifactId>Feature_Detection</artifactId>
-		    <version>2.0.2</version>
-		</dependency>
-		
+
 		<dependency>
 		    <groupId>commons-io</groupId>
 		    <artifactId>commons-io</artifactId>
-		    <version>2.5</version>
+		    <version>2.6</version>
 		</dependency>
+		
 
 		<!-- https://mvnrepository.com/artifact/org.itk.simple/simpleitk -->
 		<dependency>
@@ -143,35 +128,6 @@
 		    <type>jar</type>
 		</dependency>
 
-		<dependency>
-		    <groupId>com.phenomen</groupId>
-		    <artifactId>Fijiyama</artifactId>
-		    <version>4.0.0</version>	    
-		</dependency> 
-  	<!-- ${basedir} -->
-
-
-		<!-- https://mvnrepository.com/artifact/sc.fiji/Trainable_Segmentation -->
-		<dependency>
-		    <groupId>sc.fiji</groupId>
-		    <artifactId>Trainable_Segmentation</artifactId>
-		    <version>3.2.34</version>
-		</dependency>
-		
-		<!-- https://mvnrepository.com/artifact/com.github.mcib3d/mcib3d-core -->
-		<dependency>
-		    <groupId>com.github.mcib3d</groupId>
-		    <artifactId>mcib3d-core</artifactId>
-		    <version>master-47119b6729-1</version>
-		</dependency>
-
-		<!-- https://mvnrepository.com/artifact/org.scijava/scijava-java3d -->
-		<dependency>
-		    <groupId>org.scijava</groupId>
-		    <artifactId>scijava-java3d</artifactId>
-		    <version>0.1.0</version>
-		</dependency>
-
 		<!-- https://mvnrepository.com/artifact/sc.fiji/3D_Viewer -->
 		<dependency>
 		    <groupId>sc.fiji</groupId>
@@ -179,30 +135,15 @@
 		    <version>4.0.3</version>
 		</dependency>
 		
+
+
+		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
 		<dependency>
 		    <groupId>org.apache.commons</groupId>
 		    <artifactId>commons-math3</artifactId>
 		    <version>3.6.1</version>
 		</dependency>
-
-		<dependency>
-		    <groupId>com.sun.media</groupId>
-		    <artifactId>JAI-codec</artifactId>
-		    <version>1.1.3</version>
-		    <scope>system</scope>
-			<systemPath>${basedir}/lib/JAI-codec/JAI-codec-jar/1.1.3/JAI-codec.1.1.3.jar</systemPath>
-		</dependency>
-
-
-
 	</dependencies>
-  	
-  	
-  	
-  	
 
 
-  	
-  	
-  	
 </project>
