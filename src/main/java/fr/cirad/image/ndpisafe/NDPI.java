@@ -31,7 +31,7 @@ public class NDPI {
 
 	public static void main(String[]args) {
 		ImageJ ij=new ImageJ();
-		NDPI ndpi=new NDPI("/home/fernandr/Bureau/NDPIBordel/G1P2E15_G1P2E17.ndpi");
+		NDPI ndpi=new NDPI("/home/fernandr/Bureau/NDPIBordel/G1P2E15_G1P2E17.ndpi",false);
 		System.out.println(ndpi);
 		ndpi.previewImage.show();
 		ImagePlus img=ndpi.getExtract(0, 302, 125, 1, 1);
@@ -40,12 +40,12 @@ public class NDPI {
 
 	public NDPI() {
 		OpenDialog od1=new OpenDialog("Select NDPI file");
-		setupInfoAndPreview(od1.getPath());
+		setupInfoAndPreview(od1.getPath(),false);
 		System.out.println(this);
  	}
 
-	public NDPI(String path) {
-		setupInfoAndPreview(path);
+	public NDPI(String path,boolean verbose) {
+		setupInfoAndPreview(path,verbose);
 	}
 	
 	
@@ -107,7 +107,7 @@ public class NDPI {
          	
 	
 	
-	public void setupInfoAndPreview(String path) {
+	public void setupInfoAndPreview(String path,boolean verbose) {
 		this.sourcePath=path;
         java.awt.Rectangle screen = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
 		String[] args = new String[] {"-K",  "-p0," + screen.width + "x" + screen.height,  path};
@@ -121,7 +121,7 @@ public class NDPI {
 		String availableDimensions=null;
         
 		int incr=0;
-		for(String s : res) IJ.log("Line "+(incr++)+" : "+s);
+		if(verbose)for(String s : res) IJ.log("Line "+(incr++)+" : "+s);
 		for (int i = 0 ; i < res.length ; i++)        {
             int pos = res[i].indexOf(':');
             if (pos < 0) continue;

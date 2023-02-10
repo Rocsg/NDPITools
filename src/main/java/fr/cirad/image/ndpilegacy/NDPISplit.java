@@ -121,7 +121,7 @@ public class NDPISplit {
             /*System.err.printf("cmd[%d]=\"%s\"\n", i, args[i]);*/
         }
 
-        IJ.log("Running " + cmdline);
+        //IJ.log("Running " + cmdline);
  
         NdpisplitProcess ndpisplit = tryToLaunch(cmd, executableDirs, executableName);
         NDPIStreamParser errorParser = new   NDPIStreamParser(ndpisplit.process.getErrorStream(), log);

@@ -56,7 +56,7 @@ public class NDPITest extends PlugInFrame {
 
 	
 	public static void testNDPI() {
-		NDPI ndpi=new NDPI("/home/fernandr/Bureau/Traitements/Sylvie/NDPI_avec_bordel/G1P2E15_G1P2E17.ndpi");
+		NDPI ndpi=new NDPI("/home/fernandr/Bureau/Traitements/Sylvie/NDPI_avec_bordel/G1P2E15_G1P2E17.ndpi",true);
     	ndpi.previewImage.show();
     	VitimageUtils.waitFor(5000);
     	ExtractNDPI.extractFromGUIBis("",false,"-x0.3125");	    	

@@ -1,6 +1,7 @@
 package fr.cirad.image.sorghobff;
 
 import java.awt.Polygon;
+import java.awt.image.RGBImageFilter;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
@@ -8,6 +9,7 @@ import java.util.Random;
 
 import org.json.*;
 
+import fr.cirad.image.common.Timer;
 import fr.cirad.image.common.TransformUtils;
 import fr.cirad.image.common.VitiDialogs;
 //import javax.json.stream;
@@ -17,6 +19,7 @@ import fr.cirad.image.registration.ItkTransform;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
@@ -28,14 +31,31 @@ import ij.plugin.Duplicator;
 import ij.plugin.ImageCalculator;
 import ij.plugin.frame.PlugInFrame;
 import ij.plugin.frame.RoiManager;
+import ij.process.ColorProcessor;
 import ij.process.ImageProcessor;
+import loci.formats.in.NDPIReader;
+import loci.plugins.LociImporter;
+
 import trainableSegmentation.*;
 import hr.irb.fastRandomForest.FastRandomForest;
 import fiji.features.Frangi_;
 import fr.cirad.image.mlutils.SegmentationUtils;
 
 public class TestRomain extends PlugInFrame{
-		
+	
+    static{
+    	String dev="";
+    	String fijiHome="";
+    	if(new File("/home/rfernandez").exists())dev="Romain_PCCIRAD";
+    	else dev="Mathieu_PCPHIV";
+
+    	if(dev.equals("Romain_PCCIRAD"))fijiHome="/home/rfernandez/Bureau/Releases";
+    	if(dev.equals("Mathieu_PCPHIV"))fijiHome="set something there";
+    	System.setProperty("plugins.dir", new File(fijiHome,"/Fiji.app/plugins").getAbsolutePath()); //This line for working in Eclipse
+    	System.setProperty("imagej.app.directory", new File(fijiHome,"/Fiji.app").getAbsolutePath()); //This line for working in Eclipse
+    	System.setProperty("imagej.dir",new File(fijiHome,"/Fiji.app").getAbsolutePath());
+	}
+
 		private static final long serialVersionUID = 1L;
 		public static String vesselsDir="/media/fernandr/TOSHIBA EXT/Temp";
 		public static int NUM_TREES=200;
@@ -82,10 +102,36 @@ public class TestRomain extends PlugInFrame{
         //Methode de selection 
         //Nombres d exemples utilises
         
+        public void start() {
+        /*	String params="windowless=true " +
+        "open=/home/rfernandez/Bureau/G1P3E10.ndpi "+
+        "color_mode=Composite "+
+        "view=Hyperstack "+
+        "stack_order=XYCZT "+
+        "c_begin_2=1 c_end_2=3 c_step_2=1"+
+        "series=3";
+        	params="pouet";
+        new LociImporter().run(params);*/
+        IJ.run("Bio-Formats Importer", "open=/home/rfernandez/Bureau/G1P3E10.ndpi autoscale color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_3");
+//        IJ.run("Bio-Formats Importer", "open=/home/rfernandez/Bureau/G1P3E10.ndpi color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_3");
+/*		IJ.run("Bio-Formats Importer","open=/home/rfernandez/Bureau/G1P3E10.ndpi "+
+		        "color_mode=Composite "+
+		        "view=Hyperstack "+
+		        "stack_order=XYCZT "+
+		        "c_begin_2=1 c_end_2=3 c_step_2=1"+
+		        "series=3");*/
+		ImagePlus imp = WindowManager.getCurrentImage();
+        	//IJ.run("Bio-Formats", "open=/home/rfernandez/Bureau/G1P3E10.ndpi autoscale color_mode=Composite rois_import=[ROI manager] specify_range view=Hyperstack stack_order=XYCZT series_2 c_begin_2=1 c_end_2=3 c_step_2=1");
+        	//ImagePlus img=IJ.getImage();
+        	//IJ.run(img, "RGB Color", "");
+//        	img.close();
+        }
         
         
-        public void start (){
-    	   IJ.log("Starting training !");
+        public void start2 (){
+    	  NDPIReader read=new NDPIReader();
+    	  
+        	IJ.log("Starting training !");
     	  /**Timing @16 cores
     	   * 512 : 2s per FT, 1200s per Mexemples  , 2.4 s de classification
     	   */
@@ -134,10 +180,15 @@ public class TestRomain extends PlugInFrame{
 			this.start();
 		}	
 
+		
 		public static void main(String[]args) {
-            ImageJ ij=new ImageJ();
+			System.out.println(new Timer().hashCode());
+			ImageJ ij=new ImageJ();
             WindowManager.closeAllWindows();
-			new TestRomain().start();
+            ImagePlus img=IJ.openImage("/home/rfernandez/Bureau/A_Test/Vaisseaux/Data/Processing/Step_01_detection/Weka_test/Stack_source.tif");
+//            img.show();
+             ImagePlus[]tab=VitimageUtils.getHSB(img);
+            //			new TestRomain().start();
 		}
 		
 
@@ -286,7 +337,7 @@ public class TestRomain extends PlugInFrame{
             ImagePlus binaryRefT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+(makeTest ? "test" : "validate")+"/Stack_annotations_"+targetResolution+"_pix.tif");
             VitimageUtils.printImageResume(binaryValT);
 			binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,0.75,0.8);
-			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,true);
 		}
 		
 		public static void step_04_measure_scores(int setType,boolean useAugVal) {
@@ -302,7 +353,7 @@ public class TestRomain extends PlugInFrame{
                 System.out.println("\n\n"+d1+" "+d2);
             	ImagePlus binaryValT=IJ.openImage(vesselsDir+"/Data/Processing/Step_01_detection/Weka_"+dataType+"/Result_proba.tif");
             	binaryValT=SegmentationUtils.getSegmentationFromProbaMap3D(binaryValT,d1,d2);
-    			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT);
+    			SegmentationUtils.scoreComparisonSegmentations(binaryRefT,binaryValT,true);
     			
             
 //			VitimageUtils.compositeNoAdjustOf(binaryRefT,binaryValT).show();

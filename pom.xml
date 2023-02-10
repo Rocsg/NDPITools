@@ -8,29 +8,29 @@
   <artifactId>NDPITools</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>NDPITools</name>
-        <scm>
-                <connection>scm:git:git://github.com/Rocsg/NDPITools</connection>
-                <developerConnection>scm:git:git@github.com:Rocsg/NDPITools</developerConnection>
-                <tag>HEAD</tag>
-                <url>https://github.com/Rocsg/NDPITools</url>
-        </scm>
-         <issueManagement>
-                <system>GitHub Issues</system>
-                <url>https://github.com/Rocsg/NDPITools/issues</url>
-        </issueManagement>
-        <ciManagement>
-                <system>None</system>
-        </ciManagement>
+  <scm>
+          <connection>scm:git:git://github.com/Rocsg/NDPITools</connection>
+          <developerConnection>scm:git:git@github.com:Rocsg/NDPITools</developerConnection>
+          <tag>HEAD</tag>
+          <url>https://github.com/Rocsg/NDPITools</url>
+  </scm>
+   <issueManagement>
+          <system>GitHub Issues</system>
+          <url>https://github.com/Rocsg/NDPITools/issues</url>
+  </issueManagement>
+  <ciManagement>
+          <system>None</system>
+  </ciManagement>
 
-        <properties>
-                <package-name>com.phenomen</package-name>
-                <license.licenseName>bsd_2</license.licenseName>
-                <main-class>NDPITest</main-class>
-                <license.copyrightOwners>vitimage</license.copyrightOwners>
-              <maven.compiler.source>1.8</maven.compiler.source>
-            <maven.compiler.target>1.8</maven.compiler.target>
-            
-        </properties>
+  <properties>
+          <package-name>com.phenomen</package-name>
+          <license.licenseName>bsd_2</license.licenseName>
+          <main-class>NDPITest</main-class>
+          <license.copyrightOwners>vitimage</license.copyrightOwners>
+        <maven.compiler.source>1.8</maven.compiler.source>
+      <maven.compiler.target>1.8</maven.compiler.target>
+      
+  </properties>
         <repositories>
           <repository>
                      <id>imagej.public</id>
@@ -82,11 +82,37 @@
                     <version>3.17</version>
                 </dependency>
            <!-- https://mvnrepository.com/artifact/fr.inra.ijpb/MorphoLibJ_ -->
+			<dependency>
+			    <groupId>fr.inra.ijpb</groupId>
+			    <artifactId>MorphoLibJ_</artifactId>
+			    <version>1.4.2.1</version>
+			</dependency>
+   <!-- https://mvnrepository.com/artifact/loci/bio-formats -->
 <dependency>
-    <groupId>fr.inra.ijpb</groupId>
-    <artifactId>MorphoLibJ_</artifactId>
-    <version>1.4.2.1</version>
+    <groupId>loci</groupId>
+    <artifactId>bio-formats</artifactId>
+    <version>4.5-imagej-2.0.0-beta6</version>
 </dependency>
+   <!-- https://mvnrepository.com/artifact/loci/loci_plugins -->
+<dependency>
+    <groupId>loci</groupId>
+    <artifactId>loci_plugins</artifactId>
+    <version>4.5-imagej-2.0.0-beta6</version>
+</dependency>
+   
+		   <dependency>
+		      <groupId>com.opencsv</groupId>
+		      <artifactId>opencsv</artifactId>
+		      <version>5.4</version>
+		  </dependency>
+          
+          <!-- https://mvnrepository.com/artifact/com.github.livesense/org.liveSense.fragment.com.sun.image.codec.jpeg -->
+		<dependency>
+		    <groupId>com.github.livesense</groupId>
+		    <artifactId>org.liveSense.fragment.com.sun.image.codec.jpeg</artifactId>
+		    <version>1.0.3</version>
+		</dependency>
+          
           
             <dependency>
                     <groupId>org.json</groupId>
@@ -105,11 +131,13 @@
                     <version>3.1.1</version>
                 </dependency>
                 
-                <dependency>
-                    <groupId>net.imagej</groupId>
-                    <artifactId>ij</artifactId>
-                    <version>1.52t</version>
-                </dependency>
+                <!-- https://mvnrepository.com/artifact/net.imagej/ij -->
+				<dependency>
+				    <groupId>net.imagej</groupId>
+				    <artifactId>ij</artifactId>
+				    <version>1.53i</version>
+				</dependency>
+
                 <dependency>
                     <groupId>sc.fiji</groupId>
                     <artifactId>VIB-lib</artifactId>
@@ -144,7 +172,15 @@
                 </dependency>
 
                  <dependency>
-                    <groupId>com.phenomen</groupId>
+                    <groupId>fr.cirad.image</groupId>
+                    <artifactId>HyperWeka</artifactId>
+                    <version>0.0.1</version>
+                    <scope>system</scope>
+                        <systemPath>${basedir}/lib/HyperWeka/HyperWeka-jar/0.0.1/HyperWeka-0.0.1.jar</systemPath>            
+                </dependency>
+                
+                 <dependency>
+                    <groupId>fr.cirad.image</groupId>
                     <artifactId>Fijiyama</artifactId>
                     <version>4.0.0</version>
                     <scope>system</scope>
